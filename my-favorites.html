@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101014">
+<meta name="description" content="Koleksi video favorit kamu di Jsvidey."><title>My Favorit — Jsvidey</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<link rel="stylesheet" href="css/catalog.css"><link rel="stylesheet" href="css/navbar.css"><link rel="stylesheet" href="css/footer.css">
+<style>
+.fav-wrap{width:min(1180px,calc(100% - 32px));margin:0 auto;padding:46px 0 70px}.fav-heading{margin-bottom:24px}.fav-heading .eyebrow{color:#62c7ff;font-weight:800;letter-spacing:.12em;font-size:.75rem}.fav-heading h1{font-size:clamp(2rem,5vw,3.5rem);margin:12px 0}.fav-heading p,.fav-message{color:#aaaaba}.fav-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px}.fav-card{overflow:hidden;border:1px solid #30303a;border-radius:16px;background:#19191f}.fav-card a{display:block;color:inherit;text-decoration:none}.fav-thumb{height:135px;display:grid;place-items:center;background:linear-gradient(135deg,#14365c,#20202b);font-size:2rem;color:#62c7ff}.fav-copy{padding:14px}.fav-copy h2{font-size:1rem;line-height:1.4;margin:0 0 12px;overflow-wrap:anywhere}.fav-card-actions{display:flex;justify-content:space-between;align-items:center;gap:8px}.fav-card-actions a{color:#62c7ff;font-size:.85rem}.fav-remove{border:1px solid #49404a;border-radius:9px;padding:7px 10px;background:#281b25;color:#ffc4d4;cursor:pointer}.fav-empty{padding:28px;border:1px solid #30303a;border-radius:16px;color:#b7b7c4}
+</style></head>
+<body data-page="my-favorites">
+<div id="navbarMount"></div>
+<main class="fav-wrap"><header class="fav-heading"><span class="eyebrow"><i class="fa-solid fa-heart"></i> KOLEKSI PRIBADI</span><h1>My Favorit</h1><p>Video yang kamu simpan bisa ditemukan lagi di sini.</p></header>
+<p id="favoritesMessage" class="fav-message" aria-live="polite">Memuat favorit…</p><div id="favoritesGrid" class="fav-grid"></div></main>
+<div id="footerMount"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/navbar.js?v=20261022-favorites"></script><script src="js/footer.js"></script><script src="js/my-favorites.js?v=20261022-favorites"></script>
+<script src="js/monetization.js?v=20261023-platform-expansion"></script>
+</body></html>

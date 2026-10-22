@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "include": [
+    "/*"
+  ],
+  "exclude": [
+    "/",
+    "/index.html",
+    "/login.html",
+    "/register.html",
+    "/categories.html",
+    "/leaderboard.html",
+    "/upload.html",
+    "/my-file.html",
+    "/my-favorites.html",
+    "/download.html",
+    "/search.html",
+    "/withdraw.html",
+    "/admin.html",
+    "/top-10-videos.html",
+    "/settings.html",
+    "/dashboard.html",
+    "/watch.html",
+    "/css/*",
+    "/js/*",
+    "/assets/*",
+    "/static/*",
+    "/sql/*",
+    "/favicon.ico",
+    "/robots.txt",
+    "/sitemap.xml"
+  ]
+}

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101014">
+<meta name="description" content="Show Stream — jelajahi koleksi video dari kategori dan server pilihan.">
+<title>Show Stream — Beranda Video</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<link rel="stylesheet" href="css/catalog.css"><link rel="stylesheet" href="css/navbar.css"><link rel="stylesheet" href="css/footer.css">
+</head>
+<body data-page="home">
+<div id="navbarMount"></div>
+<main class="catalog-wrap">
+  <section class="catalog-hero">
+    <div class="hero-copy">
+      <span class="eyebrow"><i class="fa-solid fa-play"></i> SHOW STREAM • VIDEO HUB</span>
+      <h1>Jelajahi video<br><span>pilihan hari ini.</span></h1>
+      <p>Kumpulan video dalam satu tempat. Pilih kategori atau server, lalu tonton langsung dengan nyaman.</p>
+      <form class="hero-search" action="search.html"><i class="fa-solid fa-magnifying-glass"></i><input name="q" placeholder="Cari video atau kategori…" aria-label="Cari video"><button aria-label="Cari"><i class="fa-solid fa-arrow-right"></i></button></form>
+      <div class="hero-tags"><a href="categories.html?category=Trending">#Trending</a><a href="categories.html?category=Terbaru">#Terbaru</a><a href="categories.html?category=Populer">#Populer</a></div>
+    </div>
+    <div class="hero-art" aria-hidden="true"><div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div><div class="hero-feature"><div class="feature-play"><i class="fa-solid fa-play"></i></div><span>YOUR NEXT<br><b>FAVORITE VIDEO</b></span><div class="feature-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><span class="float-pill pill-hot"><i class="fa-solid fa-fire"></i> Lagi ramai</span><span class="float-pill pill-play"><i class="fa-solid fa-circle-play"></i> Putar kapan saja</span></div>
+  </section>
+  <section class="category-strip" aria-label="Kategori dan server video" hidden>
+    <a class="category-chip active" href="categories.html"><i class="fa-solid fa-compass"></i> Semua video</a>
+    <a class="category-chip" href="top-10-videos.html"><i class="fa-solid fa-chart-line"></i> Top 10 videos</a>
+    <a class="category-chip" href="categories.html?category=Viral%20Tiktok"><i class="fa-brands fa-tiktok"></i> Viral Tiktok</a>
+    <a class="category-chip" href="categories.html?category=Viral"><i class="fa-solid fa-fire"></i> Viral</a>
+    <a class="category-chip" href="categories.html?category=Local%20Indo"><i class="fa-solid fa-location-dot"></i> Local Indo</a>
+    <a class="category-chip" href="categories.html?category=Server1"><i class="fa-solid fa-server"></i> Server1</a>
+    <a class="category-chip" href="categories.html?category=Server2"><i class="fa-solid fa-server"></i> Server2</a>
+    <a class="category-chip" href="categories.html?category=Server3"><i class="fa-solid fa-server"></i> Server3</a>
+  </section>
+  <section class="catalog-section">
+    <div class="section-heading"><div><span class="section-kicker">PILIHAN HARI INI</span><h2>Kumpulan video</h2><p>Pilih video dan tonton langsung dari pemutar embed.</p></div><a class="text-link" href="categories.html">Jelajahi semua <i class="fa-solid fa-arrow-right"></i></a></div>
+    <div id="videoGrid" class="video-grid"><div class="loading-card"><i class="fa-solid fa-circle-notch fa-spin"></i> Memuat katalog video…</div></div>
+    <p id="catalogMessage" class="catalog-message" role="status"></p>
+  </section>
+  <section class="join-banner" hidden><div class="join-icon"><i class="fa-solid fa-circle-play"></i></div><div><h2>Semua video, satu tempat.</h2><p>Daftar atau login untuk menikmati pengalaman menonton Jsvidey.</p></div><div class="join-actions"><a class="btn btn-light" href="register.html">Buat akun</a><a class="btn btn-outline" href="login.html">Login</a></div></section>
+  <p class="content-note"><i class="fa-solid fa-shield-halved"></i> Jsvidey hanya untuk pengguna berusia sesuai aturan yang berlaku. Konten ilegal, tanpa persetujuan, eksploitasi, atau pelanggaran hak cipta dilarang. Laporkan konten bermasalah kepada admin.</p>
+</main>
+<div id="footerMount"></div>
+<script src="js/navbar.js"></script><script src="js/footer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/catalog.js"></script>
+<script src="js/monetization.js?v=20261023-platform-expansion"></script>
+</body></html>

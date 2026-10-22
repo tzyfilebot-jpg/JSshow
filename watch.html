@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080d19">
+<meta name="description" content="Tonton media di Jsvidey.">
+<title>Tonton Video — Jsvidey</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<link rel="stylesheet" href="css/watch.css?v=20261012-adaptive-ratio">
+<link rel="stylesheet" href="css/navbar.css?v=20261012-watch-polish">
+<link rel="stylesheet" href="css/footer.css?v=20261012-watch-polish">
+</head>
+<body data-page="watch">
+<div id="navbarMount"></div>
+<main class="watch-shell">
+  <div class="watch-kicker"><span class="live-dot"></span> JS VIDEY <span class="kicker-divider">/</span> VIDEO PLAYER</div>
+  <section class="player-card" aria-label="Pemutar video">
+    <div class="player-stage">
+      <div id="state" class="state"><i class="fa-solid fa-circle-notch fa-spin"></i><span>Memuat video…</span></div>
+      <div class="ratio-tools" id="ratioTools" hidden aria-label="Atur ukuran video"><span>Ukuran media</span><button type="button" data-ratio="portrait" aria-pressed="true">Vertikal</button><button type="button" data-ratio="landscape" aria-pressed="false">Horizontal</button></div>
+      <div class="embed-frame" id="embedFrame" hidden><iframe id="embedPlayer" title="Pemutar media tertanam" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+      <video id="player" controls playsinline preload="metadata" hidden></video>
+    </div>
+    <div class="video-info">
+      <div class="video-label"><i class="fa-solid fa-circle-play"></i> SEDANG DIPUTAR</div>
+      <h1 id="videoTitle">Video Jsvidey</h1>
+      <p id="statusText">Memuat media tertanam…</p>
+      <p class="hint"><i class="fa-solid fa-shield-halved"></i> Pemutaran mengikuti izin dan dukungan embed penyedia media.</p>
+    </div>
+  </section>
+  <section class="watch-social" aria-label="Interaksi video">
+    <div class="social-section-title"><h2>Berinteraksi</h2><span>Bagikan keseruanmu</span></div>
+    <div class="social-actions">
+      <button id="likeVideoButton" class="social-action" type="button"><i class="fa-solid fa-heart"></i><span>Like</span><strong id="likeCount">0</strong></button>
+      <button id="commentJumpButton" class="social-action" type="button"><i class="fa-solid fa-comment-dots"></i><span>Komentar</span><strong id="commentCount">0</strong></button>
+      <button id="shareVideoButton" class="social-action" type="button"><i class="fa-solid fa-share-nodes"></i><span>Bagikan</span></button>
+      <button id="favoriteVideoButton" class="social-action" type="button" aria-pressed="false"><i class="fa-regular fa-bookmark"></i><span>Favorit</span></button>
+      <a id="downloadPageButton" class="social-action" href="download.html"><i class="fa-solid fa-download"></i><span>Download</span></a>
+    </div>
+    <p id="socialNotice" class="social-notice" aria-live="polite"></p>
+    <section id="commentsSection" class="comments-panel">
+      <div class="comment-heading"><h2><i class="fa-solid fa-comments"></i> Komentar</h2><span class="comment-count">Diskusi video</span></div>
+      <form id="commentForm">
+        <label class="sr-only" for="commentName">Nama (opsional)</label><input id="commentName" maxlength="40" placeholder="Nama (opsional)" aria-label="Nama (opsional)">
+        <label class="sr-only" for="commentInput">Tulis komentar</label><textarea id="commentInput" maxlength="1000" required placeholder="Tulis komentar yang sopan…" aria-label="Tulis komentar"></textarea>
+        <button type="submit"><i class="fa-solid fa-paper-plane"></i> Kirim komentar</button>
+      </form>
+      <div id="commentList"><p class="empty-comments">Memuat komentar…</p></div>
+    </section>
+  </section>
+</main>
+<div id="footerMount"></div>
+
+<div id="telegramGate" class="telegram-gate" role="dialog" aria-modal="true" aria-labelledby="telegramGateTitle" hidden>
+  <div class="telegram-card">
+    <button type="button" class="gate-close" id="telegramGateClose" aria-label="Tutup pemberitahuan"><i class="fa-solid fa-xmark"></i></button>
+    <div class="telegram-emblem"><i class="fa-brands fa-telegram"></i></div>
+    <span class="gate-eyebrow">KOMUNITAS RESMI</span>
+    <h2 id="telegramGateTitle">Gabung Group Telegram Jsvidey</h2>
+    <p>Ikuti kabar terbaru dan info dari komunitas resmi sebelum menonton.</p>
+    <a class="gate-join" href="https://t.me/channeljsshow" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-telegram"></i> Gabung Telegram</a>
+    <button type="button" class="gate-continue" id="telegramGateContinue">Lanjut menonton <i class="fa-solid fa-arrow-right"></i></button>
+    <small>Pemberitahuan ini akan muncul kembali pada kunjungan berikutnya.</small>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/navbar.js?v=20261012-watch-polish"></script>
+<script src="js/footer.js?v=20261012-watch-polish"></script>
+<script src="js/watch.js?v=20261022-short-links"></script>
+<script src="js/watch-social.js?v=20261022-short-links-like-share"></script>
+<script src="js/watch-gate.js?v=20261012-watch-polish"></script>
+<script src="js/monetization.js?v=20261023-platform-expansion"></script>
+</body></html>
