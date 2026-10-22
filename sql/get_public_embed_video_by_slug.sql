@@ -6,18 +6,20 @@ returns table (
   title text,
   video_url text,
   status text,
-  slug text
+  slug text,
+  audience text
 )
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select v.id, v.title, v.video_url, v.status, v.slug
+  select v.id, v.title, v.video_url, v.status, v.slug, v.audience
   from public.videos as v
   where v.slug = p_slug
     and v.status = 'published'
     and v.video_url is not null
+    and (v.audience = 'public' or auth.uid() is not null)
   limit 1;
 $$;
 

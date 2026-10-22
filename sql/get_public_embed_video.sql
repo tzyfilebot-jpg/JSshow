@@ -7,18 +7,20 @@ returns table (
   title text,
   video_url text,
   status text,
-  created_at timestamptz
+  created_at timestamptz,
+  audience text
 )
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
-  select v.id, v.title, v.video_url, v.status, v.created_at
+  select v.id, v.title, v.video_url, v.status, v.created_at, v.audience
   from public.videos as v
   where v.id = p_video_id
     and v.status = 'published'
     and v.video_url is not null
+    and (v.audience = 'public' or auth.uid() is not null)
   limit 1;
 $$;
 

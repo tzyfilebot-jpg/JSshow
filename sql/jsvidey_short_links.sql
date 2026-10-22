@@ -14,5 +14,7 @@ where slug is null or btrim(slug) = '';
 create unique index if not exists videos_slug_unique_idx on public.videos(slug);
 create index if not exists videos_published_slug_idx on public.videos(slug) where status = 'published';
 
--- Public clients only need to read the slug alongside the existing public metadata policy.
+-- Column-level grants are maintained by js videy_video_catalog.sql. This file only
+-- ensures the slug column is included for projects that run this migration later.
+revoke select (user_id, updated_at, storage_key, file_size_bytes) on public.videos from public, anon, authenticated;
 grant select (id, title, video_url, status, slug, created_at, category) on public.videos to anon, authenticated;

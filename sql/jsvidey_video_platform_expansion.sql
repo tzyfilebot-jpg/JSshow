@@ -15,12 +15,31 @@ create policy "Anon can read public published videos" on public.videos for selec
   using (status='published' and audience='public');
 create policy "Members can read all published videos" on public.videos for select to authenticated
   using (status='published');
-grant select on public.videos to anon, authenticated;
+-- Keep the public surface column-limited even when this migration is re-run.
+revoke all on public.videos from public, anon, authenticated;
+revoke select (user_id, updated_at, storage_key, file_size_bytes) on public.videos from public, anon, authenticated;
+grant select (id, title, video_url, status, created_at, category, thumbnail_url, slug, audience)
+  on public.videos to anon;
+grant select (id, title, video_url, status, created_at, category, thumbnail_url, slug, audience)
+  on public.videos to authenticated;
+-- Publishing is restricted to the admin-only INSERT policy; updates/deletes use admin RPCs.
+revoke update, delete on public.videos from public, anon, authenticated;
+grant insert on public.videos to authenticated;
 
 -- RPC used by watch page: public videos are readable by everyone; member videos require auth.
--- Drop first because PostgreSQL cannot change OUT/RETURNS TABLE columns with CREATE OR REPLACE.
-drop function if exists public.get_public_embed_video_by_slug(text);
-create function public.get_public_embed_video_by_slug(p_slug text)
+-- Older deployments may have the 5-column version. Drop only that legacy signature shape;
+-- new installs already use the 6-column return shape and keep dependencies intact.
+DO $$
+BEGIN
+  IF to_regprocedure('public.get_public_embed_video_by_slug(text)') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_proc p WHERE p.oid = to_regprocedure('public.get_public_embed_video_by_slug(text)')
+         AND 'audience' = ANY(COALESCE(p.proargnames, ARRAY[]::text[]))
+     ) THEN
+    EXECUTE 'DROP FUNCTION public.get_public_embed_video_by_slug(text)';
+  END IF;
+END $$;
+create or replace function public.get_public_embed_video_by_slug(p_slug text)
 returns table (id uuid,title text,video_url text,status text,slug text,audience text)
 language sql stable security definer set search_path = '' as $$
   select v.id,v.title,v.video_url,v.status,v.slug,v.audience
@@ -32,8 +51,17 @@ $$;
 revoke all on function public.get_public_embed_video_by_slug(text) from public;
 grant execute on function public.get_public_embed_video_by_slug(text) to anon, authenticated;
 
-drop function if exists public.get_public_embed_video(uuid);
-create function public.get_public_embed_video(p_video_id uuid)
+DO $$
+BEGIN
+  IF to_regprocedure('public.get_public_embed_video(uuid)') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_proc p WHERE p.oid = to_regprocedure('public.get_public_embed_video(uuid)')
+         AND 'audience' = ANY(COALESCE(p.proargnames, ARRAY[]::text[]))
+     ) THEN
+    EXECUTE 'DROP FUNCTION public.get_public_embed_video(uuid)';
+  END IF;
+END $$;
+create or replace function public.get_public_embed_video(p_video_id uuid)
 returns table (id uuid,title text,video_url text,status text,created_at timestamptz,audience text)
 language sql stable security definer set search_path = '' as $$
   select v.id,v.title,v.video_url,v.status,v.created_at,v.audience
@@ -45,14 +73,23 @@ $$;
 revoke all on function public.get_public_embed_video(uuid) from public;
 grant execute on function public.get_public_embed_video(uuid) to anon, authenticated;
 
--- A user must be signed in to create comments. Anonymous like/share behavior remains unchanged.
+-- Likes and comments require a signed-in account; sharing remains a browser-side action.
+drop policy if exists "Public can read comments on published videos" on public.video_comments;
+create policy "Public can read comments on published videos" on public.video_comments
+  for select to anon, authenticated using (
+    exists(select 1 from public.videos v where v.id=video_id and v.status='published'
+      and (coalesce(v.audience,'public')='public' or auth.uid() is not null))
+  );
 drop policy if exists "Public can comment on published videos" on public.video_comments;
 drop policy if exists "Members can comment on published videos" on public.video_comments;
 create policy "Members can comment on published videos" on public.video_comments for insert to authenticated
 with check (visitor_id=auth.uid() and char_length(body) between 1 and 1000 and char_length(display_name) between 1 and 40
-  and exists(select 1 from public.videos v where v.id=video_id and v.status='published' and (v.audience='public' or auth.uid() is not null)));
-revoke insert on public.video_comments from anon;
-grant insert on public.video_comments to authenticated;
+  and exists(select 1 from public.videos v where v.id=video_id and v.status='published' and (coalesce(v.audience,'public')='public' or auth.uid() is not null)));
+revoke all on public.video_comments from public, anon, authenticated;
+revoke select (id, video_id, visitor_id, display_name, body, created_at) on public.video_comments from public, anon, authenticated;
+revoke insert (id, video_id, visitor_id, display_name, body, created_at) on public.video_comments from public, anon, authenticated;
+grant select (id, video_id, display_name, body, created_at) on public.video_comments to anon, authenticated;
+grant insert (video_id, visitor_id, display_name, body) on public.video_comments to authenticated;
 
 -- Add a public-safe view of display configuration. Only admin RPC may change config.
 create or replace function public.jsvidey_public_platform_status()
