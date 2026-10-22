@@ -19,24 +19,13 @@ export async function onRequest(context) {
       return await next();
     }
 
-    // Extensionless aliases for real application pages must never become video slugs.
-    const reservedRoutes = {
-      "watch": "/watch.html",
-      "login": "/login.html",
-      "register": "/register.html",
-      "dashboard": "/dashboard.html",
-      "upload": "/upload.html",
-      "settings": "/settings.html",
-      "search": "/search.html",
-      "categories": "/categories.html",
-      "admin": "/admin.html"
-    };
-    if (reservedRoutes[path]) {
-      const target = new URL(reservedRoutes[path], url.origin);
-      // Preserve query/hash only as query is available on the incoming request.
-      target.search = url.search;
-      return Response.redirect(target.toString(), 302);
-    }
+    // Never redirect reserved application paths. In particular, /watch must not
+    // become /watch.html?slug=watch, and /login must not enter a redirect chain.
+    const reservedRoutes = new Set([
+      "watch", "login", "register", "dashboard", "upload",
+      "settings", "search", "categories", "admin"
+    ]);
+    if (reservedRoutes.has(path)) return await next();
 
     // Only non-reserved, one-segment extensionless paths are short video IDs.
     const target = new URL("/watch.html", url.origin);
