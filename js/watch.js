@@ -5,9 +5,8 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
  let videoId=new URLSearchParams(location.search).get('id');
  const params=new URLSearchParams(location.search);
  let videoSlug=params.get('slug');
- if(!videoSlug && !videoId){const parts=location.pathname.split('/').filter(Boolean);if(parts.length===1 && !parts[0].includes('.'))videoSlug=decodeURIComponent(parts[0]);}
+ if(!videoSlug && !videoId){const parts=location.pathname.split('/').filter(Boolean);if(parts.length===1 && !parts[0].includes('.')){try{videoSlug=decodeURIComponent(parts[0]);}catch(_){videoSlug=parts[0];}}}
  const state=$('state'),player=$('player'),frame=$('embedFrame'),iframe=$('embedPlayer');
- const download=$('downloadButton'); // Optional legacy element; the visible download action is downloadPageButton;
  const ratioTools=$('ratioTools');
  const ratioButtons=ratioTools?Array.from(ratioTools.querySelectorAll('[data-ratio]')):[];
  function setRatio(mode){if(frame){frame.classList.toggle('landscape',mode==='landscape');}ratioButtons.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.ratio===mode)));}
@@ -15,7 +14,6 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
  function fail(message){
    if(state){state.hidden=false;state.classList.add('error');state.textContent=message;}
    const status=$('statusText');if(status)status.textContent=message;
-   if(download){download.disabled=true;download.hidden=true;}
  }
  function classify(raw){
    let u;try{u=new URL(String(raw||'').trim())}catch(_){throw new Error('Link media tidak valid.')}
@@ -51,7 +49,6 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    const status=$('statusText');
    if(status)status.textContent='Media: '+m.provider+'. Tombol Download tersedia di bagian bawah video jika penyedia mendukungnya.';
    const downloadPageButton=$('downloadPageButton');if(downloadPageButton)downloadPageButton.href='download.html?id='+encodeURIComponent(videoId);
-   if(download)download.hidden=true;
  }
  if(!videoId&&!videoSlug){fail('Link video tidak ditemukan. Buka tautan video yang valid.');return;}
  if(videoId&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(videoId)){
@@ -59,32 +56,24 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    videoSlug=videoId;videoId=null;
  }
  try{
-   // Use restricted RPCs so anonymous playback never needs broad SELECT access to public.videos.
-   let record = null;
-   if (videoSlug) {
-     const response = await fetch(SUPABASE_URL + '/rest/v1/rpc/get_public_embed_video_by_slug', {
-       method: 'POST',
-       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
-       body: JSON.stringify({ p_slug: videoSlug }),
-       cache: 'no-store'
-     });
-     const payload = await response.json().catch(() => null);
-     if (!response.ok) throw new Error(payload?.message || 'RPC slug gagal (' + response.status + '). Jalankan SQL get_public_embed_video_by_slug.sql.');
-     record = Array.isArray(payload) ? payload[0] : payload;
-   } else {
-     if (!window.supabase?.createClient) throw new Error('Library Supabase gagal dimuat.');
-     const db = window.jsvideySupabaseClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
-     const { data, error } = await db.rpc('get_public_embed_video', { p_video_id: videoId });
-     if (error) throw new Error(error.message || 'RPC video gagal.');
-     record = Array.isArray(data) ? data[0] : data;
-   }
+   // Use the authenticated Supabase client for both UUID and slug lookups. This preserves
+   // the signed-in JWT for member-only videos without granting broad SELECT access to videos.
+   if (!window.supabase?.createClient) throw new Error('Library Supabase gagal dimuat.');
+   const db = window.jsvideySupabaseClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+     auth: { persistSession: true, autoRefreshToken: true, storageKey: 'sb-ordvxiydkxbtahjpseph-auth-token' }
+   });
+   const rpcName = videoSlug ? 'get_public_embed_video_by_slug' : 'get_public_embed_video';
+   const rpcArgs = videoSlug ? { p_slug: videoSlug } : { p_video_id: videoId };
+   const { data, error } = await db.rpc(rpcName, rpcArgs);
+   if (error) throw new Error(error.message || 'Lookup video gagal. Pastikan SQL lookup video sudah diterapkan.');
+   const record = Array.isArray(data) ? data[0] : data;
    if(!record?.video_url||record.status!=='published'){
      fail('Video tidak ditemukan, belum dipublikasikan, atau link belum tersimpan.');return;
    }
    videoId=record.id;
    window.__jsvideyVideoId=record.id;
-   window.__jsvideyVideoSlug=record.slug||videoSlug||record.id;
-   window.__jsvideyShareUrl=location.origin+'/v/'+encodeURIComponent(window.__jsvideyVideoSlug);
+   window.__jsvideyVideoSlug=record.slug||videoSlug||null;
+   window.__jsvideyShareUrl=window.__jsvideyVideoSlug ? location.origin+'/v/'+encodeURIComponent(window.__jsvideyVideoSlug) : location.origin+'/watch.html?id='+encodeURIComponent(record.id);
    showEmbed(record.video_url,record.title);
  }catch(e){
    console.error('Embed lookup failed:',e);
