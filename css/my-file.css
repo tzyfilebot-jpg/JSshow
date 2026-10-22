@@ -1,0 +1,28 @@
+/* My files page — shared Jsvidey visual system + page-specific layout */
+@import url("./dashboard.css");
+.page-my-file .page-panel { max-width: 1080px; }
+.page-my-file .panel-heading { padding-bottom: 16px; border-bottom: 1px solid #8fbaff1b; }
+.page-my-file .video-list { margin-top: 18px; }
+.page-my-file .empty-state { border: 1px dashed #8fbaff26; border-radius: 14px; background: #08111f80; padding: 24px; }
+
+/* Clickable media cards and provider thumbnails */
+.page-my-file .video-item-link{display:flex;align-items:center;gap:12px;color:inherit;text-decoration:none;cursor:pointer;transition:border-color .18s,transform .18s}
+.page-my-file .video-item-link:hover,.page-my-file .video-item-link:focus-visible{border-color:#43b5ff80;outline:none;transform:translateY(-1px)}
+.page-my-file .video-thumb{position:relative;overflow:hidden}
+.page-my-file .video-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.page-my-file .video-thumb.has-thumb .video-thumb-fallback{display:none}
+.page-my-file .video-thumb-fallback{position:relative;z-index:1;opacity:.85;text-shadow:0 1px 5px #000}
+.page-my-file .video-item-copy{display:block;min-width:0;flex:1}
+.page-my-file .video-item-copy strong{overflow-wrap:anywhere}
+.page-my-file .video-item-arrow{color:#6c8bb3;font-size:.8rem;flex:none}
+.page-my-file .video-open-hint{color:#51baff!important;font-size:.72rem!important}
+
+/* Thumbnail polish and reliable clickable cards */
+.page-my-file .video-thumb{width:112px;height:68px;flex:none;border:1px solid #8fbaff25;background:linear-gradient(135deg,#123d70,#241b53);color:#eaf7ff}
+.page-my-file .video-thumb img{z-index:0}
+.page-my-file .video-thumb-fallback{z-index:1;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#06101dcc;color:#fff;box-shadow:0 2px 12px #0008}
+.page-my-file .video-thumb.has-thumb .video-thumb-fallback{display:grid;opacity:.95}
+.page-my-file .video-item-link{min-width:0}
+.page-my-file .video-item-copy{overflow:hidden}
+.page-my-file .video-item-copy strong{display:block}
+@media(max-width:480px){.page-my-file .video-thumb{width:96px;height:64px}}

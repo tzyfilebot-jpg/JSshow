@@ -1,0 +1,48 @@
+@import url("./dashboard.css");
+.page-upload .upload-page-panel{max-width:900px;padding:clamp(20px,4vw,36px);position:relative;overflow:hidden}
+.page-upload .upload-page-panel:before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,#39c5ff,#8b5cf6,#f472b6,#fbbf24)}
+.page-upload .panel-heading{padding:5px 0 22px;border-bottom:1px solid #8fbaff1b;align-items:center}
+.page-upload .panel-heading h1{font-size:clamp(1.45rem,4vw,2rem);margin:9px 0 7px;letter-spacing:-.04em}
+.upload-eyebrow{font-size:.68rem;letter-spacing:.17em;font-weight:850;color:#8ca5c7}
+.upload-eyebrow i{color:#c084fc;margin-right:6px}
+.upload-title-icon{color:#55baff!important;filter:drop-shadow(0 0 10px #299cff55);margin-right:9px}
+.upload-limit-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid #36d99b40;background:#1bce8a12;color:#5ce7b0;border-radius:30px;padding:9px 12px;font-size:.75rem;font-weight:800;white-space:nowrap}
+.page-upload .upload-form{width:100%;max-width:none}
+.page-upload .field-label{display:flex;align-items:center;gap:8px;color:#c3d4eb;font-size:.84rem;font-weight:750;margin:23px 0 9px}
+.title-icon{color:#b69aff}.media-icon{color:#ff82c7}
+.page-upload .upload-form>input{height:49px;border-radius:12px;background:#060d18;border:1px solid #8fbaff2b;color:#f2f7ff;padding:0 14px;width:100%;box-sizing:border-box}
+.page-upload .upload-form>input:focus{border-color:#8b7cff;box-shadow:0 0 0 3px #8b7cff1b;outline:0}
+.page-upload .upload-drop{min-height:255px;box-sizing:border-box;border:1.5px dashed #5d75a8a8;border-radius:18px;background:radial-gradient(ellipse at 50% 0,#8b5cf620,transparent 60%),linear-gradient(145deg,#0a1424,#080f1b);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:25px;cursor:pointer;transition:border-color .2s,background .2s,transform .2s;outline:none}
+.page-upload .upload-drop:hover,.page-upload .upload-drop:focus-visible,.page-upload .upload-drop.drag-over{border-color:#7e83ff;background:radial-gradient(ellipse at 50% 0,#8b5cf638,transparent 62%),#0a1424;box-shadow:inset 0 0 30px #8b5cf610}
+.page-upload .upload-drop.drag-over{transform:scale(1.005)}
+.drop-icon-wrap{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;font-size:1.65rem;color:#fff;background:linear-gradient(135deg,#2eb8ff,#795cff 58%,#df5ab7);box-shadow:0 10px 35px #655dff35;margin-bottom:3px}
+.page-upload .upload-drop>strong{font-size:1.16rem;color:#f3f7ff;letter-spacing:-.02em}
+.page-upload .upload-drop>span:not(.drop-icon-wrap){color:#91a6c4;font-size:.85rem}
+.drop-browse{display:inline-flex;align-items:center;gap:8px;background:#202d46;border:1px solid #7186ae36;color:#e7efff!important;border-radius:10px;padding:10px 14px;font-weight:750;margin-top:3px}
+.drop-browse i{color:#a99aff}
+.page-upload .upload-drop small{font-size:.72rem;color:#7389a9;line-height:1.5;margin-top:3px}
+.selected-file{display:flex;align-items:center;gap:12px;padding:13px;margin-top:13px;border:1px solid #8fbaff24;border-radius:13px;background:#07101d;min-width:0}
+.selected-file .file-symbol{width:43px;height:43px;display:grid;place-items:center;flex-shrink:0;border-radius:12px;color:#ff8dc7;background:linear-gradient(135deg,#e649a322,#8b5cf622);font-size:1.2rem}
+.selected-file .file-copy{flex:1;min-width:0}.selected-file strong{display:block;overflow-wrap:anywhere;color:#e8f1ff;font-size:.84rem}.selected-file small{display:block;color:#8399b8;margin-top:4px;font-size:.73rem}.selected-file .remove-file{background:#1c273a;color:#a8bad4;border:0;border-radius:9px;width:35px;height:35px;cursor:pointer;flex-shrink:0}.selected-file .remove-file:hover{color:#ff8c9d;background:#ff5a7515}
+.upload-notice{margin-top:17px;padding:16px;border-radius:14px;background:#071522;border:1px solid #36b8ff3d;box-shadow:0 8px 26px #00000012}
+.notice-top{display:flex;align-items:center;gap:11px}.notice-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:#279bff1b;color:#55c6ff;font-size:1.05rem;flex-shrink:0}.upload-notice.is-success{border-color:#38e2a64d;background:#071a18}.upload-notice.is-success .notice-icon{background:#36d99b1b;color:#51e5ad}.upload-notice.is-error{border-color:#ff6b854d;background:#1c1019}.upload-notice.is-error .notice-icon{background:#ff64751b;color:#ff8998}.notice-copy{flex:1;min-width:0}.notice-copy strong{display:block;font-size:.86rem;color:#eaf3ff}.notice-copy small{display:block;color:#879cb9;font-size:.73rem;margin-top:4px;line-height:1.5}.upload-percent{font-size:1rem;color:#61c9ff;font-variant-numeric:tabular-nums}.is-success .upload-percent{color:#55e6b0}.progress-track{height:8px;background:#1b2940;border-radius:20px;overflow:hidden;margin:15px 0 9px}.progress-fill{height:100%;width:0%;border-radius:20px;background:linear-gradient(90deg,#34c7ff,#8a6bff,#e56ac5);transition:width .15s linear;box-shadow:0 0 12px #756dff55}.is-success .progress-fill{background:linear-gradient(90deg,#24d79a,#79efbd)}.is-error .progress-fill{background:#ff718b}.notice-bottom{display:flex;justify-content:space-between;gap:12px;color:#8197b5;font-size:.7rem}
+.page-upload .upload-submit{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;min-height:50px;border:0;border-radius:12px;background:linear-gradient(100deg,#258dff,#775dff 55%,#b14fcd);color:#fff;font-weight:850;box-shadow:0 8px 25px #665cff2b;margin-top:18px;cursor:pointer}.page-upload .upload-submit:hover{filter:brightness(1.08);transform:translateY(-1px)}.page-upload .upload-submit:disabled{opacity:.55;cursor:not-allowed;transform:none}.button-arrow{margin-left:auto;opacity:.8}.page-upload .upload-submit>span{flex:1;text-align:center}.page-upload .form-message{font-size:.81rem;line-height:1.6;color:#ff9ca6;margin:12px 0 0}.page-upload .form-message.success{color:#5fe1b1}.storage-footnote{display:flex;gap:8px;align-items:flex-start;color:#7188a8;font-size:.72rem;line-height:1.6;margin:18px 0 0}.storage-footnote i{color:#50d9ab;margin-top:3px}
+@media(max-width:540px){.page-upload .upload-page-panel{padding:19px 15px}.page-upload .panel-heading{align-items:flex-start}.upload-limit-pill{font-size:.68rem;padding:7px 9px}.page-upload .upload-drop{min-height:230px;padding:18px 12px}.notice-copy small{overflow-wrap:anywhere}.selected-file{align-items:flex-start}.notice-bottom{font-size:.66rem}}
+
+/* External media links instead of local file uploads */
+.page-upload #mediaUrl{display:block;width:100%;box-sizing:border-box;padding:1rem 1.1rem;border:1px solid var(--border,rgba(148,163,184,.25));border-radius:12px;background:var(--input-bg,rgba(15,23,42,.35));color:inherit;font:inherit;outline-offset:2px}
+.page-upload #mediaUrl:focus{border-color:#818cf8;outline:2px solid rgba(129,140,248,.18)}
+.page-upload .upload-limit-pill{white-space:nowrap}
+
+/* Prominent share result after saving an embed URL */
+.page-upload .saved-result{margin-top:18px;padding:18px;border:1px solid #36d99b55;border-radius:15px;background:linear-gradient(145deg,#08201b,#0b1424);color:#eafcf4;overflow-wrap:anywhere}
+.page-upload .saved-result[hidden]{display:none}
+.page-upload .saved-result h2{margin:0 0 8px;font-size:1.08rem;color:#62e9b2}
+.page-upload .saved-result h2 i{margin-right:7px}
+.page-upload .saved-result p{margin:0 0 14px;color:#a8c8bd;font-size:.82rem;line-height:1.5}
+.page-upload .saved-result label{display:block;margin-bottom:7px;font-size:.78rem;font-weight:750;color:#d5e9e1}
+.page-upload .share-url-row{display:flex;gap:8px;align-items:stretch}
+.page-upload .share-url-row input{flex:1;min-width:0;width:100%;box-sizing:border-box;padding:11px;border-radius:9px;border:1px solid #5ad9a055;background:#050e13;color:#e7fff4;font-size:.8rem}
+.page-upload .share-url-row button{flex-shrink:0;border:0;border-radius:9px;padding:10px 12px;background:#20b981;color:#041a12;font-weight:800;cursor:pointer}
+.page-upload .saved-video-link{display:inline-flex;gap:8px;align-items:center;margin-top:13px;color:#80d8ff;font-weight:750;text-decoration:none}
+@media(max-width:420px){.page-upload .share-url-row{flex-direction:column}.page-upload .share-url-row button{min-height:42px}}

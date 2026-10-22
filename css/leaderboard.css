@@ -1,0 +1,6 @@
+/* Leaderboard page — shared Jsvidey visual system + page-specific layout */
+@import url("./dashboard.css");
+.page-leaderboard .page-panel { max-width: 980px; }
+.page-leaderboard .panel-heading { padding-bottom: 16px; border-bottom: 1px solid #8fbaff1b; }
+.page-leaderboard .leaderboard-list { margin-top: 18px; }
+.page-leaderboard .leaderboard-row { border: 1px solid #8fbaff16; }

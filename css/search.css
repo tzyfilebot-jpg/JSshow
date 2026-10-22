@@ -1,0 +1,6 @@
+/* Search page — shared Jsvidey visual system + page-specific layout */
+@import url("./dashboard.css");
+.page-search .page-panel { max-width: 980px; }
+.page-search .panel-heading { padding-bottom: 16px; border-bottom: 1px solid #8fbaff1b; }
+.page-search .search-box { min-height: 52px; }
+.page-search .video-list { margin-top: 18px; }

@@ -1,0 +1,6 @@
+/* Withdraw page — shared Jsvidey visual system + page-specific layout */
+@import url("./dashboard.css");
+.page-withdraw .page-panel { max-width: 980px; }
+.page-withdraw .panel-heading { padding-bottom: 16px; border-bottom: 1px solid #8fbaff1b; }
+.page-withdraw .overview-grid { gap: 14px; }
+.page-withdraw .profile-summary { padding: 20px; border: 1px solid #8fbaff1b; border-radius: 14px; background: #08111f; }
