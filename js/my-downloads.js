@@ -1,0 +1,21 @@
+const SUPABASE_URL='https://ordvxiydkxbtahjpseph.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbGciOiJIUzI1NiIsInR5cCI6ImFub24iLCJpYXQiOjE3OTI2MDM3MjMsImV4cCI6MjEwODE3OTcyM30.PCruI7EeLyagV_PMyCd57s3N9oYcL41k-fEgwE8G60E';
+(async()=>{
+ const msg=document.getElementById('downloadsMessage'),grid=document.getElementById('downloadsGrid');
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ if(!window.supabase?.createClient){msg.textContent='Library database gagal dimuat.';return}
+ const db=window.jsvideySupabaseClient||window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{storageKey:'sb-ordvxiydkxbtahjpseph-auth-token',persistSession:true,autoRefreshToken:true}});
+ const fmtDate=v=>{try{return new Intl.DateTimeFormat(document.documentElement.lang==='en'?'en-GB':'id-ID',{dateStyle:'medium',timeStyle:'short'}).format(new Date(v))}catch(_){return 'Tanggal tidak tersedia'}};
+ function validUrl(raw){try{const u=new URL(raw);return ['http:','https:'].includes(u.protocol)?u.href:null}catch(_){return null}}
+ function resolveDownload(item){const stored=validUrl(item.download_url);if(stored)return stored;const source=validUrl(item.source_url);if(!source)return null;const u=new URL(source);const driveId=(u.hostname==='drive.google.com'&&(u.pathname.match(/\/file\/d\/([^/]+)/)||[])[1])||u.searchParams.get('id');if(driveId)return 'https://drive.google.com/uc?export=download&id='+encodeURIComponent(driveId);if(/\.(mp4|webm|mov|m4v|ogv|ogg)(?:$)/i.test(u.pathname))return source;return null}
+ async function load(){const {data:{user},error:authError}=await db.auth.getUser();if(authError||!user){location.replace('login.html?next='+encodeURIComponent('my-downloads.html'));return}
+  const {data,error}=await db.from('jsvidey_download_history').select('id,video_id,title,source_url,download_url,downloaded_at').eq('user_id',user.id).order('downloaded_at',{ascending:false}).limit(200);
+  if(error){console.error(error);msg.textContent='Riwayat belum dapat dimuat. Jalankan SQL sql/jsvidey_download_history.sql di Supabase terlebih dahulu.';grid.innerHTML='';return}
+  const latest=new Map();for(const item of (data||[])){const key=item.video_id||item.source_url||item.id;if(!latest.has(key))latest.set(key,item)}const rows=[...latest.values()];
+  if(!rows.length){msg.textContent='Belum ada riwayat unduhan.';grid.innerHTML='<div class="dl-empty"><i class="fa-regular fa-circle-down"></i><h2>Belum ada video di sini</h2><p>Setelah kamu menekan tombol download di halaman video, riwayatnya akan muncul di sini.</p><a href="categories.html">Jelajahi video</a></div>';return}
+  msg.textContent=`${rows.length} video dalam riwayat`;grid.innerHTML=rows.map(item=>{const url=resolveDownload(item);return `<article class="dl-card"><div class="dl-thumb"><i class="fa-solid fa-circle-play"></i></div><div class="dl-copy"><h2>${esc(item.title||'Video tanpa judul')}</h2><div class="dl-date"><i class="fa-regular fa-clock"></i> ${esc(fmtDate(item.downloaded_at))}</div><div class="dl-actions"><a href="watch.html?id=${encodeURIComponent(item.video_id||'')}" ${item.video_id?'':'hidden'}><i class="fa-solid fa-play"></i> Tonton</a>${url?`<button class="primary" type="button" data-redownload="${esc(item.id)}"><i class="fa-solid fa-download"></i> Download lagi</button>`:'<span class="dl-date">Sumber unduhan tidak tersedia</span>'}<button type="button" data-remove="${esc(item.id)}" aria-label="Hapus dari riwayat"><i class="fa-solid fa-trash"></i></button></div></div></article>`}).join('');
+  grid.querySelectorAll('[data-redownload]').forEach(btn=>btn.addEventListener('click',()=>{const item=rows.find(x=>x.id===btn.dataset.redownload),url=item&&resolveDownload(item);if(!url)return;window.open(url,'_blank','noopener,noreferrer')}));
+  grid.querySelectorAll('[data-remove]').forEach(btn=>btn.addEventListener('click',async()=>{btn.disabled=true;const {error}=await db.from('jsvidey_download_history').delete().eq('id',btn.dataset.remove).eq('user_id',user.id);if(error){msg.textContent='Gagal menghapus riwayat.';btn.disabled=false;return}load()}));
+ }
+ try{await load()}catch(e){console.error(e);msg.textContent='Terjadi kesalahan saat memuat riwayat.'}
+})();

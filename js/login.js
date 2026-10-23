@@ -68,7 +68,7 @@
       showMessage(lang === "en" ? "Login successful. Opening home..." : "Berhasil masuk. Membuka beranda...", true);
       const params = new URLSearchParams(location.search);
       const requested = params.get("next");
-      const allowed = new Set(["dashboard.html", "my-file.html", "upload.html", "download.html", "watch.html", "leaderboard.html", "withdraw.html", "settings.html", "top-10-videos.html", "my-favorites.html"]);
+      const allowed = new Set(["dashboard.html", "upload.html", "download.html", "watch.html", "leaderboard.html", "settings.html", "top-10-videos.html", "my-favorites.html", "my-downloads.html"]);
       let destination = "/dashboard.html";
       if (requested) {
         try {
