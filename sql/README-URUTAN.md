@@ -53,3 +53,9 @@ Backup database sebelum menjalankan SQL. SQL ini belum dijalankan pada database 
 
 ## Pembayaran VIP/Premium (manual review)
 Setelah migrasi dasar, `jsvidey_admin_control_center.sql`, dan `jsvidey_dashboard_vip.sql` berhasil, jalankan `jsvidey_payment_orders.sql`. Halaman `vip.html` memilih paket dan mengarahkan ke `payment.html`; pesanan dibuat oleh RPC dengan harga yang ditetapkan database. Bukti/reference dikirim ke tabel pesanan dan admin meninjau melalui RPC. Aktivasi paket hanya terjadi saat admin menyetujui pesanan lewat `jsvidey_admin_review_payment`. QR Cashi harus berupa URL HTTPS yang dikonfigurasi pada Platform & notifikasi.
+
+
+## Perbaikan tombol sosial dan kode embed acak
+1. Jalankan `fix_social_interactions_safe.sql` di Supabase SQL Editor untuk fungsi Like/Favorit/komentar.
+2. Jalankan `jsvidey_random_video_codes.sql` untuk mengubah kode video menjadi 4 karakter acak sambil mempertahankan tautan lama melalui alias.
+3. Deploy ulang situs setelah ZIP terbaru dipasang.
