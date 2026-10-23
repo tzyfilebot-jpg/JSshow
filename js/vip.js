@@ -1,1 +1,10 @@
-const VIP_URL='https://ordvxiydkxbtahjpseph.supabase.co';const VIP_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yZHZ4aXlka3hidGFoanBzZXBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MDM3MjMsImV4cCI6MjEwODE3OTcyM30.PCruI7EeLyagV_PMyCd57s3N9oYcL41k-fEgwE8G60E'.replace(' ','');(async()=>{if(!window.supabase?.createClient)return;const db=window.supabase.createClient(VIP_URL,VIP_KEY);const {data,error}=await db.rpc('jsvidey_public_vip_config');if(error){document.getElementById('vipPrice').textContent='Harga VIP diatur admin';document.getElementById('paymentAmount').textContent='Hubungi admin';return}const c=data||{},fmt=n=>'Rp'+new Intl.NumberFormat('id-ID').format(Number(n)||0);document.getElementById('vipPrice').textContent=fmt(c.vip_price_idr||50000);document.getElementById('paymentAmount').textContent=fmt(c.vip_price_idr||50000);document.getElementById('paymentReceiver').textContent=c.vip_cashi_receiver||'Belum diatur admin';if(c.vip_qr_url&&/^https:\/\//i.test(c.vip_qr_url)){document.getElementById('qrFrame').innerHTML=`<img src="${c.vip_qr_url.replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" alt="QR pembayaran Cashi">`;document.getElementById('paymentNote').textContent='Scan QR ini lalu bayar sesuai nominal. Simpan bukti transaksi untuk verifikasi admin.'}})().catch(console.error);
+const VIP_URL='https://ordvxiydkxbtahjpseph.supabase.co';
+(function(){
+ const plans={vip1:{label:'VIP 1 Hari',amount:20000},vip3:{label:'VIP 3 Hari',amount:35000},vip5:{label:'VIP 5 Hari',amount:45000},vip7:{label:'VIP 7 Hari',amount:50000},premium:{label:'Premium Permanen',amount:120000}};
+ const fmt=n=>'Rp'+new Intl.NumberFormat('id-ID').format(n);
+ const buttons=[...document.querySelectorAll('[data-plan]')]; let selected='vip1';
+ function choose(btn){selected=btn.dataset.plan;buttons.forEach(x=>x.classList.toggle('selected',x===btn));const p=plans[selected];document.getElementById('vipPrice').textContent=p.label+' · '+fmt(p.amount)}
+ buttons.forEach(btn=>btn.addEventListener('click',()=>choose(btn)));
+ if(buttons.length)choose(buttons.find(x=>x.dataset.plan==='vip1')||buttons[0]);
+ document.getElementById('continuePayment')?.addEventListener('click',()=>{if(!plans[selected])return;location.href='payment.html?plan='+encodeURIComponent(selected)});
+})();

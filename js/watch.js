@@ -68,13 +68,23 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    if (error) throw new Error(error.message || 'Lookup video gagal. Pastikan SQL lookup video sudah diterapkan.');
    const record = Array.isArray(data) ? data[0] : data;
    if(!record?.video_url||record.status!=='published'){
-     fail('Video tidak ditemukan, belum dipublikasikan, atau link belum tersimpan.');return;
+     const access=await db.rpc('jsvidey_video_access_status',{p_video_id:videoId||null,p_slug:videoSlug||null});
+     const info=Array.isArray(access.data)?access.data[0]:access.data;
+     if(info&&!info.allowed){
+       const premium=String(info.audience||'').toLowerCase()==='premium';
+       const message=premium?'Video Khusus Premium, Silahkan Upgrade Status Akun.':'Video Khusus VIP & Premium, Silahkan Upgrade Status Akun.';
+       if(state){state.hidden=false;state.classList.add('error');state.innerHTML='<strong>'+message+'</strong><p><a class="btn btn-light" href="vip.html">Upgrade</a></p>';}
+       const status=$('statusText');if(status)status.textContent=message;
+     }else fail('Video tidak ditemukan, belum dipublikasikan, atau link belum tersimpan.');
+     return;
    }
    videoId=record.id;
    window.__jsvideyVideoId=record.id;
    window.__jsvideyVideoSlug=record.slug||videoSlug||null;
    window.__jsvideyShareUrl=window.__jsvideyVideoSlug ? location.origin+'/v/'+encodeURIComponent(window.__jsvideyVideoSlug) : location.origin+'/watch.html?id='+encodeURIComponent(record.id);
    showEmbed(record.video_url,record.title);
+   // Count a view through a database function; never allow the browser to write raw view rows.
+   db.rpc('jsvidey_record_video_view',{p_video_id:record.id}).then(({error})=>{if(error)console.warn('View count not recorded:',error.message)});
  }catch(e){
    console.error('Embed lookup failed:',e);
    const detail=e?.name==='AbortError'?'Permintaan ke Supabase melewati batas waktu 12 detik.':(e?.message||String(e));
