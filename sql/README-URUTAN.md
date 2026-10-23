@@ -29,3 +29,9 @@ Jangan menjalankan ulang seluruh daftar secara membabi buta. (Opsional) jalankan
 - Jangan menaruh service-role key di HTML/JavaScript. Kode frontend hanya memakai anon key.
 - Migrasi ini disusun untuk source di ZIP dan belum dijalankan pada database live pengguna. SQL Editor Supabase yang sebenarnya adalah tempat untuk memvalidasi terhadap kondisi database aktual.
 - Jika SQL berhenti dengan error, jangan terus menekan Run. Simpan pesan error lengkap dan periksa sebelum meneruskan.
+
+## Jsshow dashboard, thumbnail, announcement, and VIP update
+
+After the existing authentication, video catalog, short-link, platform expansion, and admin-control SQL migrations have been applied, run `sql/jsvidey_dashboard_vip.sql` in the Supabase SQL Editor. It adds the VIP audience option, thumbnail metadata support, server-category VIP access checks for catalog reads and direct watch RPCs, broadcast announcement read policy, and a safe public VIP-payment configuration RPC.
+
+In Panel Admin → Media, enter a thumbnail URL and select the category/server and access level when publishing a video. In Panel Admin → Platform & notifikasi, set the VIP price and paste the HTTPS URL of the real Cashi QR image plus the receiver name/ID. Payment is manual: the admin must verify proof and change the member's `profiles.plan` to `vip`; the page does not pretend to verify payments automatically.
