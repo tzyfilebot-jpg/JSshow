@@ -28,6 +28,10 @@
     "/sql/*",
     "/favicon.ico",
     "/robots.txt",
-    "/sitemap.xml"
+    "/sitemap.xml",
+    "/vip.html",
+    "/vip",
+    "/my-favorites",
+    "/top-10-videos"
   ]
 }
