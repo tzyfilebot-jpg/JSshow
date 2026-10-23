@@ -23,8 +23,11 @@ export async function onRequest(context) {
     // become /watch.html?slug=watch, and /login must not enter a redirect chain.
     const reservedRoutes = new Set([
       "watch", "login", "register", "dashboard", "upload",
-      "settings", "search", "categories", "admin"
+      "settings", "search", "categories", "admin", "my-downloads"
     ]);
+    if (path === "withdraw" || path === "my-file") {
+      return Response.redirect(new URL("/dashboard.html", url.origin).toString(), 302);
+    }
     if (reservedRoutes.has(path)) return await next();
 
     // Only non-reserved, one-segment extensionless paths are short video IDs.
