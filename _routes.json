@@ -36,6 +36,8 @@
     "/payment.html",
     "/payment",
     "/categories",
-    "/search"
+    "/search",
+    "/my-downloads",
+    "/my-downloads.html"
   ]
 }
