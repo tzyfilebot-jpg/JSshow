@@ -35,6 +35,10 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
      const input=document.getElementById('catalogSearchInput');if(input)input.value=rawTerm;
      return;
    }
+   // Apply membership visibility before rendering or building category chips.
+   // Public/free content is visible to everyone; VIP can view VIP content; Premium can view both VIP and Premium content.
+   const tier=v=>{const a=String(v.audience||v.access_level||v.membership||'').toLowerCase();if(a==='premium'||a==='pro'||/^premium\b/.test(a))return 'premium';if(a==='vip'||/^vip\b/.test(a)||/^server\s*vip/i.test(String(v.category||'')))return 'vip';if(/^server\s*premium/i.test(String(v.category||'')))return 'premium';return 'public'};
+   videos=videos.filter(v=>{const t=tier(v);return t==='public'||(t==='vip'&&isVip)||(t==='premium'&&isPremium)});
    if(term)videos=videos.filter(v=>(v.title||'').toLowerCase().includes(term)||(v.category||'').toLowerCase().includes(term));
    if(category && (params.get('type')==='server'||/^server/i.test(category)) && !isVip){
      grid.innerHTML='<div class="empty-card"><i class="fa-solid fa-lock"></i><h3>Halaman terkunci</h3><p>Upgrade Akun Terlebih Dahulu</p><strong>JSSHOW MEMBERSHIP</strong><p>Buka akses VIP<br> Nikmati akses ke server VIP dan koleksi khusus.</p><a class="btn btn-light" href="vip.html">Lanjut Upgrade VIP</a></div>';
