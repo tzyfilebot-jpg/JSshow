@@ -51,7 +51,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     commentInput?.focus({ preventScroll: true });
   });
   shareButton?.addEventListener('click', async () => {
-    const shareUrl = window.__jsvideyShareUrl || location.href;
+    const shareUrl = window.__jsvideyShareUrl || (videoSlug ? location.origin + '/v/' + encodeURIComponent(videoSlug) : (videoId ? location.origin + '/watch.html?id=' + encodeURIComponent(videoId) : location.href));
     try {
       if (navigator.share) {
         await navigator.share({ title: document.title, url: shareUrl });
@@ -232,7 +232,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       renderLikes();
       notice(liked ? 'Video disukai.' : 'Like dibatalkan.');
     } catch (error) {
-      notice('Untuk memberi Like, login terlebih dahulu. Jika sudah login, periksa migrasi SQL sosial.');
+      notice(error?.message ? 'Like gagal: ' + error.message : 'Like gagal. Login dan pastikan sql/fix_social_interactions_safe.sql sudah diterapkan di Supabase.');
       console.error('Like action failed:', error);
     } finally {
       likeButton.disabled = false;
@@ -263,7 +263,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       }
       renderFavorite();
     } catch (error) {
-      notice('Favorit belum dapat disimpan. Pastikan SQL database sosial sudah diterapkan.');
+      notice(error?.message ? 'Favorit gagal: ' + error.message : 'Favorit gagal. Login dan pastikan sql/fix_social_interactions_safe.sql sudah diterapkan di Supabase.');
       console.error('Favorite action failed:', error);
     } finally {
       favoriteButton.disabled = false;
