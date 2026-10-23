@@ -1,2 +1,33 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080d19"><title>Download media — Jsvidey</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"><link rel="stylesheet" href="css/watch.css?v=20261012-db2"><link rel="stylesheet" href="css/navbar.css?v=20261012-db2"><link rel="stylesheet" href="css/footer.css?v=20261012-db2"><link rel="stylesheet" href="css/download.css?v=20261012-db2"></head><body data-page="download"><div id="navbarMount"></div><main class="download-shell"><section class="download-card"><div class="download-icon"><i class="fa-solid fa-cloud-arrow-down"></i></div><h1>Download media</h1><p id="downloadStatus">Memuat informasi media…</p><h2 id="downloadTitle">Video Jsvidey</h2><div class="download-actions"><button id="downloadNow" disabled><i class="fa-solid fa-download"></i> Siapkan download</button><a id="backToWatch" href="index.html" class="secondary"><i class="fa-solid fa-play"></i> Tonton video</a></div><p class="download-note">Download tersedia sesuai izin pemilik dan dukungan penyedia media. YouTube dan beberapa situs hanya mengizinkan pemutaran/berbagi melalui platform asal.</p></section></main><div id="footerMount"></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/navbar.js?v=20261012-db2"></script><script src="js/footer.js?v=20261012-db2"></script><script src="js/download.js?v=20261012-db2"></script><script src="js/monetization.js?v=20261023-platform-expansion"></script>
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080d19">
+<title>Download Video — JSSHOW</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<link rel="stylesheet" href="css/watch.css?v=20261023-social-download-fix"><link rel="stylesheet" href="css/navbar.css?v=20261023-social-download-fix"><link rel="stylesheet" href="css/footer.css?v=20261023-social-download-fix"><link rel="stylesheet" href="css/download.css?v=20261023-social-download-fix">
+</head>
+<body data-page="download"><div id="navbarMount"></div>
+<main class="download-shell">
+  <section class="download-card">
+    <div class="download-icon"><i class="fa-solid fa-cloud-arrow-down"></i></div>
+    <p class="download-eyebrow">JSSHOW DOWNLOAD CENTER</p><h1>Download Video</h1>
+    <p id="downloadStatus" aria-live="polite">Memuat informasi video…</p><h2 id="downloadTitle">Video JSSHOW</h2>
+    <div class="channel-actions">
+      <a class="channel-button" href="https://t.me/channeljsshow" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-telegram"></i> Join Channel Update Viral</a>
+      <a class="channel-button secondary" href="https://t.me/namagrup" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-telegram"></i> Join Channel Terbaru</a>
+    </div>
+    <p id="downloadEligibility" class="download-note">Memeriksa apakah media mendukung download langsung…</p>
+    <section id="adTasks" class="ad-tasks" hidden aria-labelledby="adTasksTitle">
+      <h3 id="adTasksTitle"><i class="fa-solid fa-list-check"></i> Selesaikan 3 langkah iklan</h3>
+      <p class="task-intro">Buka setiap iklan dan tunggu hitung mundur selesai untuk membuka langkah berikutnya.</p>
+      <article class="ad-task" data-ad-step="1"><div class="task-number">1</div><div class="task-content"><h4>Iklan Pertama</h4><p id="ad1Status">Belum dibuka</p><div id="ad1Slot" class="ad-slot" hidden></div><button type="button" class="task-button" data-open-ad="1">Tampilkan iklan pertama</button><button type="button" class="task-continue" data-continue-ad="1" disabled>Lanjut <span>10 dtk</span></button></div></article>
+      <article class="ad-task" data-ad-step="2"><div class="task-number">2</div><div class="task-content"><h4>Iklan Kedua</h4><p id="ad2Status">Menunggu langkah pertama</p><button type="button" class="task-button" data-open-ad="2" disabled>Buka iklan kedua</button><button type="button" class="task-continue" data-continue-ad="2" disabled>Lanjut <span>10 dtk</span></button></div></article>
+      <article class="ad-task" data-ad-step="3"><div class="task-number">3</div><div class="task-content"><h4>Iklan Ketiga</h4><p id="ad3Status">Menunggu langkah kedua</p><div id="ad3Slot" class="ad-slot ad-slot-large" hidden><div id="container-ef7f0e942fbcf5b02dd491deb0f7ac5f"></div></div><button type="button" class="task-button" data-open-ad="3" disabled>Tampilkan iklan ketiga</button><button type="button" class="task-continue" data-continue-ad="3" disabled>Lanjut <span>10 dtk</span></button></div></article>
+    </section>
+    <div id="downloadReady" class="download-ready" hidden><i class="fa-solid fa-circle-check"></i><h3>Semua langkah selesai</h3><p>Tekan tombol di bawah untuk memulai download jika penyedia mengizinkan pengunduhan.</p><button id="downloadNow" type="button"><i class="fa-solid fa-download"></i> Download Now</button></div>
+    <div class="download-actions"><a id="backToWatch" href="index.html" class="secondary"><i class="fa-solid fa-arrow-left"></i> Kembali ke video</a></div>
+    <p class="download-note">Download hanya tersedia untuk file yang memang dapat diunduh dan sesuai izin pemiliknya. Iklan pihak ketiga dapat diblokir oleh browser atau pemblokir iklan.</p>
+  </section>
+</main><div id="footerMount"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/navbar.js?v=20261023-social-download-fix"></script><script src="js/footer.js?v=20261023-social-download-fix"></script><script src="js/download.js?v=20261023-social-download-fix"></script><script src="js/monetization.js?v=20261023-platform-expansion"></script>
 </body></html>
