@@ -2,44 +2,29 @@
 <html lang="id">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101014">
-<meta name="description" content="Jsvidey — jelajahi koleksi video viral dari berbagai kategori.">
-<title>Top 10 Video — Jsvidey</title>
+<meta name="description" content="Sepuluh video dengan jumlah tayangan tertinggi di Jsshow.">
+<title>Top 10 Video — Jsshow</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 <link rel="stylesheet" href="css/catalog.css"><link rel="stylesheet" href="css/navbar.css"><link rel="stylesheet" href="css/footer.css">
+<link rel="stylesheet" href="css/catalog-pages.css">
 </head>
 <body data-page="top-10-videos">
 <div id="navbarMount"></div>
-<main class="catalog-wrap">
-  <section class="catalog-hero">
-    <div class="hero-copy">
-      <span class="eyebrow"><i class="fa-solid fa-fire"></i> JSVIDEY • VIDEO HUB</span>
-      <h1>Top 10<br><span>video pilihan.</span></h1>
-      <p>Daftar video dari kategori Top 10 videos. Jika belum ada video yang diberi kategori ini, daftar akan menampilkan kondisi kosong tanpa membuat data palsu.</p>
-      <form class="hero-search" action="search.html"><i class="fa-solid fa-magnifying-glass"></i><input name="q" placeholder="Cari video atau kategori…" aria-label="Cari video"><button aria-label="Cari"><i class="fa-solid fa-arrow-right"></i></button></form>
-      <div class="hero-tags"><a href="categories.html?category=Trending">#Trending</a><a href="categories.html?category=Terbaru">#Terbaru</a><a href="categories.html?category=Populer">#Populer</a></div>
-    </div>
-    <div class="hero-art" aria-hidden="true"><div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div><div class="hero-feature"><div class="feature-play"><i class="fa-solid fa-play"></i></div><span>YOUR NEXT<br><b>FAVORITE VIDEO</b></span><div class="feature-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><span class="float-pill pill-hot"><i class="fa-solid fa-fire"></i> Lagi ramai</span><span class="float-pill pill-play"><i class="fa-solid fa-circle-play"></i> Putar kapan saja</span></div>
-  </section>
-  <section class="category-strip" aria-label="Navigasi video">
-    <a class="category-chip active" href="top-10-videos.html"><i class="fa-solid fa-chart-line"></i> Top 10 Video</a>
-    <a class="category-chip" href="categories.html?category=Trending"><i class="fa-solid fa-fire"></i> Trending</a>
-    <a class="category-chip" href="categories.html?category=Komedi"><i class="fa-solid fa-face-laugh"></i> Komedi</a>
-    <a class="category-chip" href="categories.html?category=Musik"><i class="fa-solid fa-music"></i> Musik</a>
-    <a class="category-chip" href="categories.html?category=Gaming"><i class="fa-solid fa-gamepad"></i> Gaming</a>
-    <a class="category-chip" href="categories.html?category=Olahraga"><i class="fa-solid fa-futbol"></i> Olahraga</a>
-    <a class="category-chip" href="categories.html?category=Hiburan"><i class="fa-solid fa-clapperboard"></i> Hiburan</a>
-    <a class="category-chip" href="categories.html?category=18%2B"><i class="fa-solid fa-shield-halved"></i> 18+ khusus dewasa</a>
-  </section>
-  <section class="catalog-section">
-    <div class="section-heading"><div><span class="section-kicker">KOLEKSI VIDEO</span><h2 id="categoryHeading">Top 10 Video</h2><p>Gunakan kategori atau pencarian untuk menemukan konten.</p></div><a class="text-link" href="categories.html">Jelajahi kategori <i class="fa-solid fa-arrow-right"></i></a></div>
-    <div id="videoGrid" class="video-grid"><div class="loading-card"><i class="fa-solid fa-circle-notch fa-spin"></i> Memuat katalog video…</div></div>
-    <p id="catalogMessage" class="catalog-message" role="status"></p>
-  </section>
-  <section class="join-banner"><div class="join-icon"><i class="fa-solid fa-circle-play"></i></div><div><h2>Semua video, satu tempat.</h2><p>Daftar atau login untuk menikmati pengalaman menonton Jsvidey.</p></div><div class="join-actions"><a class="btn btn-light" href="register.html">Buat akun</a><a class="btn btn-outline" href="login.html">Login</a></div></section>
-  <p class="content-note"><i class="fa-solid fa-shield-halved"></i> Jsvidey hanya untuk pengguna berusia sesuai aturan yang berlaku. Konten ilegal, tanpa persetujuan, eksploitasi, atau pelanggaran hak cipta dilarang. Laporkan konten bermasalah kepada admin.</p>
+<main class="catalog-wrap page-catalog page-top10">
+
+<section class="top10-heading-panel">
+ <div class="top10-heading-copy"><span class="page-eyebrow"><i class="fa-solid fa-chart-line"></i> PERINGKAT BERDASARKAN TAYANGAN</span><h1>Top 10 <span>Video</span></h1><p>Daftar diperbarui berdasarkan jumlah penayangan yang tercatat di database. Video yang lebih sering ditonton akan naik peringkat.</p><a class="top10-explore-link" href="categories.html"><i class="fa-solid fa-compass"></i> Jelajahi kategori</a></div>
+ <div class="top10-visual" aria-hidden="true"><div class="top10-big-number">10</div><div class="top10-visual-caption"><i class="fa-solid fa-fire"></i> PALING DITONTON</div><div class="top10-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+</section>
+<section class="catalog-section page-results">
+ <div class="section-heading"><div><span class="section-kicker">PERINGKAT SAAT INI</span><h2>10 video teratas</h2><p>Diurutkan dari tayangan terbanyak ke paling sedikit.</p></div><span class="live-ranking"><i></i> Berdasarkan database</span></div>
+ <div id="videoGrid" class="video-grid top10-grid"><div class="loading-card"><i class="fa-solid fa-circle-notch fa-spin"></i> Menghitung peringkat video…</div></div>
+ <p id="catalogMessage" class="catalog-message" role="status"></p>
+</section>
 </main>
 <div id="footerMount"></div>
-<script src="js/navbar.js"></script><script src="js/footer.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/catalog.js"></script>
+<script src="js/navbar.js?v=20261023-catalog-pages"></script><script src="js/footer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/catalog.js?v=20261023-search-top10-category"></script>
 <script src="js/monetization.js?v=20261023-platform-expansion"></script>
 </body></html>

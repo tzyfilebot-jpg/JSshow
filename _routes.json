@@ -32,6 +32,10 @@
     "/vip.html",
     "/vip",
     "/my-favorites",
-    "/top-10-videos"
+    "/top-10-videos",
+    "/payment.html",
+    "/payment",
+    "/categories",
+    "/search"
   ]
 }
