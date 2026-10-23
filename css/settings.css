@@ -3,3 +3,5 @@
 .page-settings .page-panel { max-width: 900px; }
 .page-settings .panel-heading { padding-bottom: 16px; border-bottom: 1px solid #8fbaff1b; }
 .page-settings .profile-summary { padding: 20px; border: 1px solid #8fbaff1b; border-radius: 14px; background: #08111f; }
+
+.password-form{display:grid;gap:12px;max-width:460px;margin:18px 0}.password-form label{display:grid;gap:7px;font-size:14px}.password-form input{width:100%;padding:12px;border:1px solid var(--line, #d1d5db);border-radius:10px;background:var(--surface,#fff);color:inherit}
