@@ -5,7 +5,7 @@ alter table public.videos add column if not exists thumbnail_url text;
 alter table public.videos add column if not exists category text not null default 'Trending';
 alter table public.videos add column if not exists audience text not null default 'public';
 alter table public.videos drop constraint if exists videos_audience_check;
-alter table public.videos add constraint videos_audience_check check (audience in ('public','members','vip'));
+alter table public.videos add constraint videos_audience_check check (audience in ('public','members','vip','premium'));
 create index if not exists videos_category_status_created_idx on public.videos(category,status,created_at desc);
 
 -- Server categories are VIP-only even if an admin accidentally chooses public/member audience.
@@ -101,14 +101,28 @@ grant execute on function public.jsvidey_admin_dashboard() to authenticated;
 -- Admin-only plan activation/deactivation after manually verifying Cashi payments.
 create or replace function public.jsvidey_admin_set_plan(p_user_id uuid,p_plan text)
 returns jsonb language plpgsql security definer set search_path='' as $$
+declare normalized text; expiry timestamptz;
 begin
  if not public.jsvidey_is_admin() then raise exception 'Admin access required'; end if;
- if p_plan not in ('free','vip') then raise exception 'Plan harus free atau vip'; end if;
- update public.profiles set plan=p_plan where id=p_user_id;
+ normalized:=lower(trim(coalesce(p_plan,'basic')));
+ if normalized not in ('basic','free','vip','vip_1d','vip_3d','vip_5d','vip_7d','premium','pro') then
+   raise exception 'Paket harus Basic, VIP 1/3/5/7 Hari, atau Premium';
+ end if;
+ expiry:=case normalized when 'vip_1d' then now()+interval '1 day'
+                         when 'vip_3d' then now()+interval '3 days'
+                         when 'vip_5d' then now()+interval '5 days'
+                         when 'vip_7d' then now()+interval '7 days'
+                         when 'vip' then now()+interval '7 days'
+                         else null end;
+ normalized:=case when normalized in ('free','basic') then 'basic'
+                   when normalized like 'vip%' then 'vip'
+                   when normalized='pro' then 'premium' else normalized end;
+ update public.profiles set plan=normalized,
+   plan_expires_at=case when normalized='vip' then expiry else null end
+ where id=p_user_id;
  if not found then raise exception 'Profil member tidak ditemukan'; end if;
- return jsonb_build_object('ok',true,'user_id',p_user_id,'plan',p_plan);
-end;
-$$;
+ return jsonb_build_object('ok',true,'user_id',p_user_id,'plan',normalized,'plan_expires_at',expiry);
+end; $$;
 revoke all on function public.jsvidey_admin_set_plan(uuid,text) from public,anon;
 grant execute on function public.jsvidey_admin_set_plan(uuid,text) to authenticated;
 
@@ -127,3 +141,175 @@ returns jsonb language sql stable security definer set search_path=public as $$
 $$;
 revoke all on function public.jsvidey_public_vip_config() from public;
 grant execute on function public.jsvidey_public_vip_config() to anon,authenticated;
+
+
+-- Jsshow package and popularity rules (run after the existing dashboard/VIP migration).
+-- Normalize historical plan labels, then allow Basic, VIP, and Premium consistently.
+alter table public.profiles add column if not exists plan_expires_at timestamptz;
+alter table public.profiles drop constraint if exists profiles_plan_check;
+update public.profiles
+set plan = case lower(coalesce(plan,'basic'))
+  when 'free' then 'basic'
+  when 'basic' then 'basic'
+  when 'vip' then 'vip'
+  when 'premium' then 'premium'
+  when 'pro' then 'premium'
+  else 'basic' end;
+alter table public.profiles add constraint profiles_plan_check
+  check (lower(plan) in ('basic','vip','premium','pro'));
+alter table public.profiles alter column plan set default 'basic';
+
+-- Allow all requested video access levels, preserving legacy member-only rows.
+alter table public.videos drop constraint if exists videos_audience_check;
+alter table public.videos add constraint videos_audience_check
+  check (audience in ('public','members','vip','premium'));
+
+-- Server content and premium-only content are checked on every database read / embed lookup.
+drop policy if exists "Anon can read public published videos" on public.videos;
+create policy "Anon can read public published videos" on public.videos
+for select to anon
+using (status='published' and coalesce(audience,'public')='public'
+  and coalesce(category,'') not ilike 'server%');
+
+drop policy if exists "Jsshow authenticated catalog access" on public.videos;
+create policy "Jsshow authenticated catalog access" on public.videos
+for select to authenticated
+using (
+ status='published' and (
+   (coalesce(audience,'public')='public' and coalesce(category,'') not ilike 'server%')
+   or (coalesce(audience,'public')='members' and coalesce(category,'') not ilike 'server%')
+   or ((coalesce(audience,'public')='vip' or coalesce(category,'') ilike 'server%')
+       and exists(select 1 from public.profiles p where p.id=auth.uid()
+         and lower(coalesce(p.plan,'basic')) in ('vip','premium','pro')
+         and (p.plan_expires_at is null or p.plan_expires_at > now())))
+   or (coalesce(audience,'public')='premium'
+       and exists(select 1 from public.profiles p where p.id=auth.uid()
+         and lower(coalesce(p.plan,'basic')) in ('premium','pro')))
+ )
+);
+
+create or replace function public.get_public_embed_video(p_video_id uuid)
+returns table (id uuid,title text,video_url text,status text,created_at timestamptz,audience text)
+language sql stable security definer set search_path=public,auth as $$
+ select v.id,v.title,v.video_url,v.status,v.created_at,v.audience
+ from public.videos v where v.id=p_video_id and v.status='published' and v.video_url is not null
+ and (
+   (coalesce(v.audience,'public')='public' and coalesce(v.category,'') not ilike 'server%')
+   or (auth.uid() is not null and coalesce(v.audience,'public')='members' and coalesce(v.category,'') not ilike 'server%')
+   or (auth.uid() is not null and (coalesce(v.audience,'public')='vip' or coalesce(v.category,'') ilike 'server%')
+       and exists(select 1 from public.profiles p where p.id=auth.uid()
+         and lower(coalesce(p.plan,'basic')) in ('vip','premium','pro')
+         and (p.plan_expires_at is null or p.plan_expires_at > now())))
+   or (auth.uid() is not null and coalesce(v.audience,'public')='premium'
+       and exists(select 1 from public.profiles p where p.id=auth.uid()
+         and lower(coalesce(p.plan,'basic')) in ('premium','pro')))
+ );
+$$;
+revoke all on function public.get_public_embed_video(uuid) from public;
+grant execute on function public.get_public_embed_video(uuid) to anon,authenticated;
+
+create or replace function public.get_public_embed_video_by_slug(p_slug text)
+returns table (id uuid,title text,video_url text,status text,slug text,audience text)
+language sql stable security definer set search_path=public,auth as $$
+ select v.id,v.title,v.video_url,v.status,v.slug,v.audience
+ from public.videos v where v.slug=p_slug and v.status='published' and v.video_url is not null
+ and (
+   (coalesce(v.audience,'public')='public' and coalesce(v.category,'') not ilike 'server%')
+   or (auth.uid() is not null and coalesce(v.audience,'public')='members' and coalesce(v.category,'') not ilike 'server%')
+   or (auth.uid() is not null and (coalesce(v.audience,'public')='vip' or coalesce(v.category,'') ilike 'server%')
+       and exists(select 1 from public.profiles p where p.id=auth.uid()
+         and lower(coalesce(p.plan,'basic')) in ('vip','premium','pro')
+         and (p.plan_expires_at is null or p.plan_expires_at > now())))
+   or (auth.uid() is not null and coalesce(v.audience,'public')='premium'
+       and exists(select 1 from public.profiles p where p.id=auth.uid()
+         and lower(coalesce(p.plan,'basic')) in ('premium','pro')))
+ );
+$$;
+revoke all on function public.get_public_embed_video_by_slug(text) from public;
+grant execute on function public.get_public_embed_video_by_slug(text) to anon,authenticated;
+
+-- Views are recorded by a security-definer RPC; clients cannot insert raw analytics rows.
+create or replace function public.jsvidey_record_video_view(p_video_id uuid)
+returns boolean language plpgsql security definer set search_path=public,auth as $$
+declare v public.videos%rowtype; uid uuid;
+begin
+ select * into v from public.videos where id=p_video_id and status='published';
+ if not found then return false; end if;
+ uid:=auth.uid();
+ if uid is null and (coalesce(v.audience,'public')<>'public' or coalesce(v.category,'') ilike 'server%') then return false; end if;
+ if coalesce(v.audience,'public')='vip' or coalesce(v.category,'') ilike 'server%' then
+   if not exists(select 1 from public.profiles p where p.id=uid and lower(coalesce(p.plan,'basic')) in ('vip','premium','pro') and (p.plan_expires_at is null or p.plan_expires_at>now())) then return false; end if;
+ end if;
+ if coalesce(v.audience,'public')='premium' and not exists(select 1 from public.profiles p where p.id=uid and lower(coalesce(p.plan,'basic')) in ('premium','pro')) then return false; end if;
+ if uid is not null and exists(select 1 from public.video_views vv where vv.video_id=p_video_id and vv.viewer_id=uid and vv.viewed_at>now()-interval '30 minutes') then return true; end if;
+ insert into public.video_views(video_id,creator_id,viewer_id,views,viewed_at)
+ values(v.id,v.user_id,uid,1,now());
+ return true;
+end; $$;
+revoke all on function public.jsvidey_record_video_view(uuid) from public;
+grant execute on function public.jsvidey_record_video_view(uuid) to anon,authenticated;
+
+drop function if exists public.jsvidey_top_videos(integer);
+create function public.jsvidey_top_videos(p_limit integer default 10)
+returns table(id uuid,slug text,title text,created_at timestamptz,status text,category text,audience text,thumbnail_url text,view_count bigint)
+language sql stable security definer set search_path=public,auth as $$
+ select v.id,v.slug,v.title,v.created_at,v.status,v.category,v.audience,v.thumbnail_url,
+        coalesce(sum(vv.views),0)::bigint as view_count
+ from public.videos v left join public.video_views vv on vv.video_id=v.id
+ where v.status='published'
+ group by v.id order by view_count desc,v.created_at desc limit greatest(1,least(coalesce(p_limit,10),10));
+$$;
+revoke all on function public.jsvidey_top_videos(integer) from public;
+grant execute on function public.jsvidey_top_videos(integer) to anon,authenticated;
+
+-- Safe catalogue RPC returns public metadata only, so Basic users can see locked VIP/Premium cards
+-- without receiving provider embed URLs. The watch RPC remains the only source of playable URLs.
+create or replace function public.jsvidey_catalog_videos()
+returns table(id uuid,slug text,title text,created_at timestamptz,status text,category text,audience text,thumbnail_url text)
+language sql stable security definer set search_path=public,auth as $$
+ select v.id,v.slug,v.title,v.created_at,v.status,v.category,v.audience,v.thumbnail_url
+ from public.videos v where v.status='published'
+ and (coalesce(v.audience,'public') in ('public','members','vip','premium') or coalesce(v.category,'') ilike 'server%')
+ order by v.created_at desc limit 300;
+$$;
+revoke all on function public.jsvidey_catalog_videos() from public;
+grant execute on function public.jsvidey_catalog_videos() to anon,authenticated;
+
+-- Admin can assign Basic, VIP, or Premium; optional expiry is assigned by package duration.
+create or replace function public.jsvidey_admin_set_plan(p_user_id uuid,p_plan text)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare normalized text;
+begin
+ if not public.jsvidey_is_admin() then raise exception 'Admin access required'; end if;
+ normalized:=lower(trim(coalesce(p_plan,'basic')));
+ if normalized not in ('basic','free','vip','premium','pro') then raise exception 'Paket harus Basic, VIP, atau Premium'; end if;
+ normalized:=case normalized when 'free' then 'basic' when 'pro' then 'premium' else normalized end;
+ update public.profiles set plan=normalized,
+   plan_expires_at=case when normalized='vip' then now()+interval '7 days' else null end
+ where id=p_user_id;
+ if not found then raise exception 'Profil member tidak ditemukan'; end if;
+ return jsonb_build_object('ok',true,'user_id',p_user_id,'plan',normalized);
+end; $$;
+revoke all on function public.jsvidey_admin_set_plan(uuid,text) from public,anon;
+grant execute on function public.jsvidey_admin_set_plan(uuid,text) to authenticated;
+
+
+-- Safe access diagnostic for the watch page: reveals metadata and access tier, never the embed URL.
+create or replace function public.jsvidey_video_access_status(p_video_id uuid default null,p_slug text default null)
+returns table(title text,audience text,category text,allowed boolean)
+language sql stable security definer set search_path=public,auth as $$
+ select v.title,coalesce(v.audience,'public'),coalesce(v.category,''),
+ case
+   when v.status<>'published' or v.video_url is null then false
+   when coalesce(v.audience,'public')='public' and coalesce(v.category,'') not ilike 'server%' then true
+   when coalesce(v.audience,'public')='members' then auth.uid() is not null
+   when coalesce(v.audience,'public')='vip' or coalesce(v.category,'') ilike 'server%' then exists(
+     select 1 from public.profiles p where p.id=auth.uid() and lower(coalesce(p.plan,'basic')) in ('vip','premium','pro') and (p.plan_expires_at is null or p.plan_expires_at>now()))
+   when coalesce(v.audience,'public')='premium' then exists(select 1 from public.profiles p where p.id=auth.uid() and lower(coalesce(p.plan,'basic')) in ('premium','pro'))
+   else false end
+ from public.videos v
+ where (p_video_id is not null and v.id=p_video_id) or (p_slug is not null and v.slug=p_slug)
+ limit 1;
+$$;
+revoke all on function public.jsvidey_video_access_status(uuid,text) from public;
+grant execute on function public.jsvidey_video_access_status(uuid,text) to anon,authenticated;

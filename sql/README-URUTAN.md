@@ -35,3 +35,21 @@ Jangan menjalankan ulang seluruh daftar secara membabi buta. (Opsional) jalankan
 After the existing authentication, video catalog, short-link, platform expansion, and admin-control SQL migrations have been applied, run `sql/jsvidey_dashboard_vip.sql` in the Supabase SQL Editor. It adds the VIP audience option, thumbnail metadata support, server-category VIP access checks for catalog reads and direct watch RPCs, broadcast announcement read policy, and a safe public VIP-payment configuration RPC.
 
 In Panel Admin → Media, enter a thumbnail URL and select the category/server and access level when publishing a video. In Panel Admin → Platform & notifikasi, set the VIP price and paste the HTTPS URL of the real Cashi QR image plus the receiver name/ID. Payment is manual: the admin must verify proof and change the member's `profiles.plan` to `vip`; the page does not pretend to verify payments automatically.
+
+
+## Paket Basic / VIP / Premium, Top 10, dan akses katalog (update 2026-10-23)
+
+Untuk project `JSshow-main-routing-fixed`, jalankan ulang `jsvidey_dashboard_vip.sql` setelah migrasi dasar sudah terpasang. Update terbaru pada file ini:
+- memperbolehkan status paket `basic`, `vip`, `premium`;
+- menambahkan `plan_expires_at` untuk masa aktif VIP;
+- menyediakan RPC aman `jsvidey_catalog_videos` agar pengguna Basic dapat melihat judul/thumbnail video terkunci tanpa menerima URL embed;
+- menyediakan `jsvidey_top_videos` yang mengurutkan Top 10 dari `video_views`;
+- mencatat penayangan melalui `jsvidey_record_video_view`;
+- memeriksa akses video langsung dan menyediakan diagnosis akses untuk pesan Upgrade;
+- memperbolehkan admin menetapkan paket Basic, VIP, atau Premium.
+
+Backup database sebelum menjalankan SQL. SQL ini belum dijalankan pada database live; validasi pesan SQL Editor sebelum menguji website.
+
+
+## Pembayaran VIP/Premium (manual review)
+Setelah migrasi dasar, `jsvidey_admin_control_center.sql`, dan `jsvidey_dashboard_vip.sql` berhasil, jalankan `jsvidey_payment_orders.sql`. Halaman `vip.html` memilih paket dan mengarahkan ke `payment.html`; pesanan dibuat oleh RPC dengan harga yang ditetapkan database. Bukti/reference dikirim ke tabel pesanan dan admin meninjau melalui RPC. Aktivasi paket hanya terjadi saat admin menyetujui pesanan lewat `jsvidey_admin_review_payment`. QR Cashi harus berupa URL HTTPS yang dikonfigurasi pada Platform & notifikasi.
