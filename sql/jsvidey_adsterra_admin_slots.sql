@@ -35,6 +35,7 @@ returns jsonb language sql stable security definer set search_path = '' as $$
     'ad_inline_extra_code',coalesce(settings->>'ad_inline_extra_code',''),
     'ad_auto_code',coalesce(settings->>'ad_auto_code',''),
     'ad_direct_url',coalesce(settings->>'ad_direct_url',''),
+    'ad_placements',coalesce(settings->'ad_placements','[]'::jsonb),
     'promo_enabled',coalesce((settings->>'promo_enabled')::boolean,false),
     'promo_type',coalesce(settings->>'promo_type','ticker'),
     'promo_text',coalesce(settings->>'promo_text',''),
