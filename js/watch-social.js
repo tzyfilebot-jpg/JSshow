@@ -39,6 +39,14 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   if (favoriteButton) favoriteButton.disabled = true;
   if (commentSubmitButton) commentSubmitButton.disabled = true;
   downloadPageButton?.addEventListener('click', event => {
+    // watch.js resolves the canonical video first. Reuse its result so a separate
+    // social RPC failure cannot leave the Download anchor permanently blocked.
+    if (!videoReady && window.__jsvideyVideoId) {
+      videoId = window.__jsvideyVideoId;
+      videoSlug = window.__jsvideyVideoSlug || videoSlug;
+      videoReady = true;
+      downloadPageButton.href = '/download.html?id=' + encodeURIComponent(videoId);
+    }
     if (!videoReady) {
       event.preventDefault();
       notice('Tautan download sedang disiapkan. Tunggu sebentar lalu tekan lagi.');
@@ -125,6 +133,14 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     throw new Error('Data video masih dimuat. Coba lagi sebentar.');
   }
   async function resolveVideo() {
+    if (window.__jsvideyVideoId) {
+      videoId = window.__jsvideyVideoId;
+      videoSlug = window.__jsvideyVideoSlug || videoSlug;
+      window.__jsvideyShareUrl = window.__jsvideyShareUrl || (videoSlug ? location.origin + '/v/' + encodeURIComponent(videoSlug) : location.origin + '/watch.html?id=' + encodeURIComponent(videoId));
+      if (downloadPageButton) downloadPageButton.href = '/download.html?id=' + encodeURIComponent(videoId);
+      videoReady = true;
+      return;
+    }
     if (!videoSlug && !videoId) throw new Error('Link video tidak ditemukan.');
     const rpcName = videoSlug ? 'get_public_embed_video_by_slug' : 'get_public_embed_video';
     const args = videoSlug ? { p_slug: videoSlug } : { p_video_id: videoId };
@@ -141,9 +157,21 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     window.__jsvideyShareUrl = videoSlug
       ? location.origin + '/v/' + encodeURIComponent(videoSlug)
       : location.origin + '/watch.html?id=' + encodeURIComponent(videoId);
-    if (downloadPageButton) downloadPageButton.href = 'download.html?id=' + encodeURIComponent(videoId);
+    if (downloadPageButton) downloadPageButton.href = '/download.html?id=' + encodeURIComponent(videoId);
     videoReady = true;
   }
+
+  window.addEventListener('jsvidey:video-ready', event => {
+    const id = event.detail?.id;
+    if (!id) return;
+    videoId = id;
+    videoSlug = event.detail?.slug || videoSlug;
+    videoReady = true;
+    if (downloadPageButton) downloadPageButton.href = '/download.html?id=' + encodeURIComponent(videoId);
+    if (likeButton) likeButton.disabled = false;
+    if (favoriteButton) favoriteButton.disabled = false;
+    if (commentSubmitButton) commentSubmitButton.disabled = false;
+  });
 
   async function loadLikes() {
     const { data: authData, error: authError } = await db.auth.getUser();
@@ -323,9 +351,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       videoLoadError = error;
       console.error('Social video lookup failed:', error);
       notice(error.message || 'Interaksi video gagal dimuat.');
-      if (likeButton) likeButton.disabled = true;
-      if (favoriteButton) favoriteButton.disabled = true;
-      if (commentSubmitButton) commentSubmitButton.disabled = true;
+      if (window.__jsvideyVideoId) {
+        videoId = window.__jsvideyVideoId;
+        videoSlug = window.__jsvideyVideoSlug || videoSlug;
+        videoReady = true;
+        if (likeButton) likeButton.disabled = false;
+        if (favoriteButton) favoriteButton.disabled = false;
+        if (commentSubmitButton) commentSubmitButton.disabled = false;
+      } else {
+        if (likeButton) likeButton.disabled = true;
+        if (favoriteButton) favoriteButton.disabled = true;
+        if (commentSubmitButton) commentSubmitButton.disabled = true;
+      }
     }
   })();
 })();

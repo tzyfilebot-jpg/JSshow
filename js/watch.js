@@ -48,7 +48,7 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    if(state)state.hidden=true;
    const status=$('statusText');
    if(status)status.textContent='Media: '+m.provider+'. Tombol Download tersedia di bagian bawah video jika penyedia mendukungnya.';
-   const downloadPageButton=$('downloadPageButton');if(downloadPageButton)downloadPageButton.href='download.html?id='+encodeURIComponent(videoId);
+   const downloadPageButton=$('downloadPageButton');if(downloadPageButton)downloadPageButton.href='/download.html?id='+encodeURIComponent(videoId);
  }
  if(!videoId&&!videoSlug){fail('Link video tidak ditemukan. Buka tautan video yang valid.');return;}
  if(videoId&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(videoId)){
@@ -81,6 +81,7 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    videoId=record.id;
    window.__jsvideyVideoId=record.id;
    window.__jsvideyVideoSlug=record.slug||videoSlug||null;
+   window.dispatchEvent(new CustomEvent('jsvidey:video-ready',{detail:{id:record.id,slug:record.slug||videoSlug||null}}));
    window.__jsvideyShareUrl=window.__jsvideyVideoSlug ? location.origin+'/v/'+encodeURIComponent(window.__jsvideyVideoSlug) : location.origin+'/watch.html?id='+encodeURIComponent(record.id);
    showEmbed(record.video_url,record.title);
    // Count a view through a database function; never allow the browser to write raw view rows.

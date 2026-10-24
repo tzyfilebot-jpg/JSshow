@@ -1,36 +1,133 @@
 const SUPABASE_URL='https://ordvxiydkxbtahjpseph.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yZHZ4aXlka3hidGFoanBzZXBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MDM3MjMsImV4cCI6MjEwODE3OTcyM30.PCruI7EeLyagV_PMyCd57s3N9oYcL41k-fEgwE8G60E';
-(async()=>{
- const $=id=>document.getElementById(id),params=new URLSearchParams(location.search),id=params.get('id');
- const status=$('downloadStatus'),title=$('downloadTitle'),eligibility=$('downloadEligibility'),tasks=$('adTasks'),ready=$('downloadReady'),downloadButton=$('downloadNow');
- let source='',downloadUrl='',isDownloadable=false,activeStep=0,adTimers=new Map(),finished=new Set(),dbClient=null,videoRecord=null,currentUser=null;
- const adDirect='https://www.profitableratercpmnetwork.com/pkmkxfrmiy?key=5b5750804fb6a29007e75d321e567d75';
- const ad1Src='https://pl31626285.profitableratercpmnetwork.com/1e/25/0c/1e250cc0da41c572970286fab29d5009.js';
- const ad3Src='https://pl31626334.profitableratercpmnetwork.com/ef7f0e942fbcf5b02dd491deb0f7ac5f/invoke.js';
- function safeTitle(value){return String(value||'JSSHOW-video').normalize('NFKD').replace(/[^a-zA-Z0-9_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80)||'JSSHOW-video'}
- function loadScript(src,attrs={}){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.async=true;script.referrerPolicy='no-referrer-when-downgrade';Object.entries(attrs).forEach(([k,v])=>script.setAttribute(k,v));script.onload=()=>resolve();script.onerror=()=>reject(new Error('Skrip iklan tidak dapat dimuat; mungkin diblokir browser.'));document.body.append(script)})}
- function setStepState(step,message){const el=$('ad'+step+'Status');if(el)el.textContent=message}
- function unlockStep(step){const next=$(`[data-open-ad="${step}"]`);if(next)next.disabled=false}
- function startCountdown(step){const btn=$(`[data-continue-ad="${step}"]`),open=$(`[data-open-ad="${step}"]`);if(!btn)return;let remaining=10;btn.disabled=true;btn.querySelector('span').textContent=remaining+' dtk';const old=adTimers.get(step);if(old)clearInterval(old);const timer=setInterval(()=>{remaining--;if(remaining<=0){clearInterval(timer);adTimers.delete(step);btn.disabled=false;btn.querySelector('span').textContent='Lanjut sekarang';setStepState(step,'Waktu iklan selesai. Lanjutkan ke langkah berikutnya.');if(open)open.disabled=true}else btn.querySelector('span').textContent=remaining+' dtk'},1000);adTimers.set(step,timer)}
- async function openAd(step){if(step!==activeStep+1||finished.has(step))return;activeStep=step;const open=$(`[data-open-ad="${step}"]`);if(open)open.disabled=true;setStepState(step,'Iklan dibuka. Tunggu 10 detik sebelum melanjutkan.');
-   if(step===1){$('ad1Slot').hidden=false;try{await loadScript(ad1Src)}catch(e){setStepState(step,'Iklan mungkin diblokir. Tunggu sebentar lalu lanjutkan.')}}
-   if(step===2){const popup=window.open(adDirect,'_blank');if(popup){try{popup.opener=null}catch(_){}}setStepState(step,popup?'Iklan dibuka di tab baru. Tunggu 10 detik di halaman ini.':'Popup mungkin diblokir browser. Iklan mungkin perlu dibuka manual: '+adDirect)}
-   if(step===3){$('ad3Slot').hidden=false;try{await loadScript(ad3Src,{'data-cfasync':'false'})}catch(e){setStepState(step,'Iklan mungkin diblokir. Tunggu sebentar lalu lanjutkan.')}}
-   startCountdown(step);
+(()=> {
+ const $=id=>document.getElementById(id);
+ const params=new URLSearchParams(location.search),id=params.get('id');
+ const status=$('downloadStatus'),titleEl=$('downloadTitle'),eligibility=$('downloadEligibility');
+ const thumbnail=$('downloadThumbnail'),startButton=$('startDownloadFlow'),steps=$('downloadSteps'),ready=$('downloadReady'),downloadButton=$('downloadNow');
+ const stepOrder=['top','middle','bottom'];
+ const stepElements={top:$('downloadStepTop'),middle:$('downloadStepMiddle'),bottom:$('downloadStepBottom')};
+ const stepStatuses={top:$('downloadTopStatus'),middle:$('downloadMiddleStatus'),bottom:$('downloadBottomStatus')};
+ const adUrl='https://www.profitableratercpmnetwork.com/pkmkxfrmiy?key=5b5750804fb6a29007e75d321e567d75';
+ let db=null,video=null,currentUser=null,downloadUrl='',busy=false;
+ const alignDefaults={top_align:'right',middle_align:'center',bottom_align:'left'};
+ function setStatus(text){if(status)status.textContent=text}
+ function safeHttps(value){try{const u=new URL(String(value||''));return u.protocol==='https:'?u.href:''}catch(_){return ''}}
+ function normalizeDownloadTarget(value){
+   const raw=safeHttps(value);if(!raw)return '';
+   try{
+     const u=new URL(raw);
+     if(u.hostname==='drive.google.com'){
+       const driveId=(u.pathname.match(/\/file\/d\/([^/]+)/)||[])[1]||u.searchParams.get('id');
+       if(driveId && !(u.pathname==='/uc'&&u.searchParams.get('export')==='download'))
+         return 'https://drive.google.com/uc?export=download&id='+encodeURIComponent(driveId);
+     }
+     return u.href;
+   }catch(_){return ''}
  }
- document.querySelectorAll('[data-open-ad]').forEach(btn=>btn.addEventListener('click',()=>openAd(Number(btn.dataset.openAd))));
- document.querySelectorAll('[data-continue-ad]').forEach(btn=>btn.addEventListener('click',()=>{const step=Number(btn.dataset.continueAd);if(btn.disabled||step!==activeStep)return;finished.add(step);btn.disabled=true;btn.textContent='Selesai ✓';setStepState(step,'Langkah selesai.');if(step<3){unlockStep(step+1);setStepState(step+1,'Siap dimulai.')}else{tasks.hidden=true;ready.hidden=false;status.textContent='Semua langkah iklan sudah diselesaikan.';eligibility.textContent='Download siap dimulai.'}}));
- if(!id){status.textContent='ID video tidak ditemukan. Buka halaman ini dari tombol Download di halaman video.';eligibility.textContent='Tidak dapat memeriksa file tanpa ID video.';return}
- $('backToWatch').href='watch.html?id='+encodeURIComponent(id);
- if(!window.supabase?.createClient){status.textContent='Library database gagal dimuat.';return}
- const db=window.jsvideySupabaseClient||window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'sb-ordvxiydkxbtahjpseph-auth-token'}});
- try{
-   const {data:authData,error:authError}=await db.auth.getUser();if(authError||!authData?.user){location.replace('login.html?next='+encodeURIComponent('download.html?id='+id));return}
-   const {data,error}=await db.rpc('get_public_embed_video',{p_video_id:id});const v=Array.isArray(data)?data[0]:data;
-   if(error||!v?.video_url||v.status!=='published')throw error||new Error('Video tidak ditemukan atau belum dipublikasikan.');
-   source=v.video_url;title.textContent=v.title||'Video JSSHOW';videoRecord=v;currentUser=authData.user;const u=new URL(source);const driveId=(u.hostname==='drive.google.com'&&(u.pathname.match(/\/file\/d\/([^/]+)/)||[])[1])||u.searchParams.get('id');const direct=/\.(mp4|webm|mov|m4v|ogv|ogg)(?:$)/i.test(u.pathname);
-   if(driveId){downloadUrl='https://drive.google.com/uc?export=download&id='+encodeURIComponent(driveId);isDownloadable=true}else if(direct){downloadUrl=source;isDownloadable=true}else{status.textContent='Video ditemukan, tetapi sumbernya tidak menyediakan tautan download langsung yang dapat dikenali.';eligibility.textContent='Download tidak tersedia untuk sumber ini. Penyedia seperti YouTube/Vimeo biasanya hanya mengizinkan pemutaran atau berbagi lewat platform asal.';tasks.hidden=true;ready.hidden=true;return}
-   status.textContent='Video ditemukan. Selesaikan 3 langkah di bawah untuk melanjutkan.';eligibility.textContent='Sumber mendukung tautan download. Setelah tiga langkah selesai, tombol Download Now akan muncul.';tasks.hidden=false;unlockStep(1);
- }catch(e){status.textContent='Tidak bisa membaca video: '+(e?.message||'kesalahan tidak diketahui');eligibility.textContent='Pastikan video dipublikasikan, akses akun sesuai, dan fungsi get_public_embed_video tersedia.';console.error('Download page init failed:',e);return}
- downloadButton.addEventListener('click',async()=>{if(!isDownloadable||finished.size!==3)return;downloadButton.disabled=true;try{if(dbClient&&currentUser&&videoRecord){const {error:historyError}=await dbClient.from('jsvidey_download_history').insert({user_id:currentUser.id,video_id:videoRecord.id,title:videoRecord.title||'Video JSSHOW',source_url:source,download_url:downloadUrl});if(historyError)console.warn('Download history was not saved:',historyError.message)}if(downloadUrl.includes('drive.google.com/uc?export=download')){window.location.href=downloadUrl;status.textContent='Permintaan download Google Drive dibuka. Riwayat disimpan jika tabel riwayat sudah diaktifkan.';return}const a=document.createElement('a');a.href=downloadUrl;a.download=safeTitle(title.textContent);a.rel='noopener';a.target='_blank';document.body.append(a);a.click();a.remove();status.textContent='Permintaan download dikirim. Jika file terbuka di tab baru, gunakan menu download dari browser atau penyedia.'}catch(e){status.textContent='Download gagal dimulai: '+(e?.message||'silakan buka sumber video langsung.')}finally{downloadButton.disabled=false}});
+ function fallbackDownload(source){
+   try{
+     const u=new URL(source);
+     if(u.hostname==='drive.google.com'){
+       const driveId=(u.pathname.match(/\/file\/d\/([^/]+)/)||[])[1]||u.searchParams.get('id');
+       if(driveId)return 'https://drive.google.com/uc?export=download&id='+encodeURIComponent(driveId);
+     }
+     if(/\.(mp4|webm|mov|m4v|ogv|ogg)(?:$)/i.test(u.pathname))return u.href;
+   }catch(_){}
+   return '';
+ }
+ async function init(){
+   if(!id){setStatus('ID video tidak ditemukan. Kembali ke video lalu tekan Download.');eligibility.textContent='Tautan download membutuhkan ID video.';startButton.disabled=true;return}
+   $('backToWatch').href='/watch.html?id='+encodeURIComponent(id);
+   if(!window.supabase?.createClient){setStatus('Library database gagal dimuat.');startButton.disabled=true;return}
+   db=window.jsvideySupabaseClient||window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'sb-ordvxiydkxbtahjpseph-auth-token'}});
+   try{
+     const auth=await db.auth.getUser();currentUser=auth.data?.user||null;
+     const result=await db.rpc('get_public_download_video',{p_video_id:id});
+     if(result.error)throw new Error('Fungsi database get_public_download_video belum tersedia. Jalankan sql/jsvidey_download_flow.sql di Supabase.');
+     video=Array.isArray(result.data)?result.data[0]:result.data;
+     if(!video?.id||video.status!=='published'){
+       if(!currentUser){location.replace('/login.html?next='+encodeURIComponent('download.html?id='+id));return}
+       throw new Error('Video tidak ditemukan, belum dipublikasikan, atau akun tidak memiliki akses.');
+     }
+     if(video.audience&&video.audience!=='public'){
+       const access=await db.rpc('jsvidey_video_access_status',{p_video_id:video.id,p_slug:video.slug||null});
+       const info=Array.isArray(access.data)?access.data[0]:access.data;
+       if(!access.error&&info&&!info.allowed){
+         setStatus('Video ini memerlukan paket membership yang sesuai.');
+         eligibility.innerHTML='Silakan periksa paket akses video di halaman <a href="/vip.html">Membership</a>.';
+         startButton.disabled=true;return;
+       }
+     }
+     titleEl.textContent=video.title||'Video JSSHOW';
+     if(video.thumbnail_url){thumbnail.src=video.thumbnail_url;thumbnail.hidden=false;thumbnail.onerror=()=>{thumbnail.hidden=true}}
+     downloadUrl=normalizeDownloadTarget(video.download_url)||fallbackDownload(video.video_url);
+     if(!downloadUrl){
+       eligibility.textContent='Link download belum diatur admin. Video ini belum dapat diunduh langsung.';
+       startButton.disabled=true;
+     }else{
+       eligibility.textContent='Tekan Download Video untuk memulai 3 tahap iklan. Setiap tahap menunggu 7 detik.';
+       startButton.disabled=false;
+     }
+     const settingsResult=await db.rpc('jsvidey_get_download_settings');
+     const cfg=!settingsResult.error&&settingsResult.data?settingsResult.data:alignDefaults;
+     const map={top:cfg.top_align||alignDefaults.top_align,middle:cfg.middle_align||alignDefaults.middle_align,bottom:cfg.bottom_align||alignDefaults.bottom_align};
+     stepOrder.forEach(key=>{stepElements[key].dataset.align=['left','center','right'].includes(map[key])?map[key]:'center'});
+     setStatus('Video berhasil ditemukan.');
+   }catch(error){
+     console.error('Download page initialization failed:',error);
+     setStatus(error.message||'Gagal memuat informasi video.');
+     eligibility.textContent='Pastikan video dipublikasikan, link download benar, dan migrasi SQL download sudah dijalankan.';
+     startButton.disabled=true;
+   }
+ }
+ startButton?.addEventListener('click',()=>{
+   if(startButton.disabled||!downloadUrl)return;
+   startButton.hidden=true;steps.hidden=false;stepElements.top.hidden=false;
+   stepStatuses.top.textContent='Klik tombol Download untuk membuka iklan. Setelah itu tunggu 7 detik.';
+ });
+ document.querySelectorAll('[data-download-step]').forEach(button=>{
+   button.addEventListener('click',()=>{
+     const key=button.dataset.downloadStep,index=stepOrder.indexOf(key);
+     if(index<0||busy||button.disabled)return;
+     busy=true;button.disabled=true;button.textContent='Memuat 7 detik…';
+     const popup=window.open(adUrl,'_blank');
+     if(!popup){
+       button.disabled=false;button.textContent='Coba buka iklan lagi';
+       stepStatuses[key].textContent='Popup iklan diblokir browser. Izinkan popup untuk situs ini, lalu coba lagi.';
+       busy=false;return;
+     }
+     try{popup.opener=null}catch(_){}
+     let remaining=7;stepStatuses[key].textContent='Iklan dibuka. Tunggu '+remaining+' detik…';
+     const timer=setInterval(()=>{
+       remaining--;
+       if(remaining<=0){
+         clearInterval(timer);busy=false;button.textContent='Selesai ✓';button.disabled=true;
+         stepElements[key].hidden=true;
+         if(index<stepOrder.length-1){
+           const next=stepOrder[index+1];stepElements[next].hidden=false;
+           stepStatuses[next].textContent='Tahap berikutnya siap. Klik Download untuk membuka iklan dan tunggu 7 detik.';
+         }else{
+           steps.hidden=true;ready.hidden=false;
+           eligibility.textContent='Semua tahap selesai. Tombol akhir membuka link download dari panel admin.';
+         }
+       }else stepStatuses[key].textContent='Iklan dibuka. Tunggu '+remaining+' detik…';
+     },1000);
+   });
+ });
+ downloadButton?.addEventListener('click',async()=>{
+   if(!downloadUrl||busy)return;
+   busy=true;downloadButton.disabled=true;downloadButton.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Membuka download…';
+   try{
+     if(db&&currentUser&&video?.id){
+       const {error}=await db.from('jsvidey_download_history').insert({user_id:currentUser.id,video_id:video.id,title:video.title||'Video JSSHOW',source_url:video.video_url,download_url:downloadUrl});
+       if(error)console.warn('Riwayat download tidak tersimpan:',error.message);
+     }
+     window.location.assign(downloadUrl);
+   }catch(error){
+     setStatus('Gagal membuka link download: '+(error.message||'coba lagi.'));
+     downloadButton.disabled=false;downloadButton.innerHTML='<i class="fa-solid fa-download"></i> Download Video';busy=false;
+   }
+ });
+ init();
 })();
