@@ -80,7 +80,7 @@ const withTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu lama
  try{
    // Use the authenticated Supabase client for both UUID and slug lookups. This preserves
    // the signed-in JWT for member-only videos without granting broad SELECT access to videos.
-   if (!window.supabase?.createClient) throw new Error('Library Supabase gagal dimuat.');
+   if (!window.jsvideySupabaseClient && !window.supabase?.createClient) throw new Error('Library Supabase gagal dimuat.');
    const db = window.jsvideySupabaseClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
      auth: { persistSession: true, autoRefreshToken: true, storageKey: 'sb-ordvxiydkxbtahjpseph-auth-token' }
    });

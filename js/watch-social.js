@@ -164,7 +164,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     }
   });
 
-  if (!window.supabase?.createClient) {
+  if (!window.jsvideySupabaseClient && !window.supabase?.createClient) {
     const message = 'Koneksi database belum tersedia. Muat ulang halaman; jika tetap gagal, periksa pemuatan library Supabase.';
     notice(message, 'error');
     setCommentMessage('Komentar gagal dimuat. ' + message, 'error');
