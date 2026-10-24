@@ -119,3 +119,11 @@ video{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;bac
   .ratio-tools button { padding: 6px 9px; }
   .video-info { padding: 14px; }
 }
+
+/* Related video cards: readable aggregate interaction stats */
+.related-placeholder{display:grid;place-items:center;width:100%;height:100%;color:#6b91c8;font-size:2rem;background:radial-gradient(circle at center,#1a2c49,#070b14)}
+.related-stats{gap:8px 11px;line-height:1.5}
+.related-stats span{white-space:nowrap}
+.related-stats i{margin-right:2px}
+#relatedVideoGrid .related-loading{margin:0;padding:16px 0}
+@media(max-width:420px){.related-stats{font-size:.65rem;gap:5px 8px}}
