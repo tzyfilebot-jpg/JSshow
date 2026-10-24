@@ -7,12 +7,21 @@
 <meta name="description" content="Tonton media di Jsvidey.">
 <title>Tonton Video — Jsvidey</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-<link rel="stylesheet" href="css/watch.css?v=20261025-watch-interactions-v3">
+<link rel="stylesheet" href="css/watch.css?v=20261025-watch-entry-notice-v1">
 <link rel="stylesheet" href="css/navbar.css?v=20261025-watch-interactions-v3">
 <link rel="stylesheet" href="css/footer.css?v=20261025-watch-interactions-v3">
 </head>
 <body data-page="watch">
 <div id="navbarMount"></div>
+<div id="watchEntryNotice" class="watch-entry-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="watchEntryTitle">
+  <section class="watch-entry-card">
+    <button id="watchNoticeClose" class="watch-entry-close" type="button" aria-label="Tutup notifikasi">×</button>
+    <img id="watchEntryThumbnail" class="watch-entry-thumbnail" alt="Thumbnail video" hidden>
+    <div class="watch-entry-copy"><span class="watch-entry-eyebrow">JS VIDEY • VIDEO</span><h2 id="watchEntryTitle">Memuat video…</h2><p id="watchEntryLoading" hidden><i class="fa-solid fa-circle-notch fa-spin"></i> Menyiapkan video, tunggu 3 detik…</p></div>
+    <div class="watch-entry-actions"><button id="watchEntryPlay" type="button" class="watch-entry-play"><i class="fa-solid fa-play"></i> Play</button><a id="watchEntryJoin" class="watch-entry-join" href="https://t.me/+DqdGHeiPZA9mYTQx" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-telegram"></i> Join Group</a></div>
+  </section>
+</div>
+
 <main class="watch-shell">
   <div class="watch-kicker"><span class="live-dot"></span> JS VIDEY <span class="kicker-divider">/</span> VIDEO PLAYER</div>
   <section class="player-card" aria-label="Pemutar video">
@@ -56,7 +65,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/navbar.js?v=20261025-watch-interactions-v3"></script>
 <script src="js/footer.js?v=20261025-watch-interactions-v3"></script>
-<script src="js/watch.js?v=20261025-watch-preview-v4"></script>
+<script src="js/watch.js?v=20261025-watch-entry-notice-v1"></script>
 <script src="js/watch-social.js?v=20261025-watch-social-v4"></script>
 
 <script src="js/monetization.js?v=20261025-central-ad-manager-v3"></script>
