@@ -92,10 +92,9 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
      const access=await db.rpc('jsvidey_video_access_status',{p_video_id:videoId||null,p_slug:videoSlug||null});
      const info=Array.isArray(access.data)?access.data[0]:access.data;
      if(info&&!info.allowed){
-       const premium=String(info.audience||'').toLowerCase()==='premium'||String(info.category||'').toLowerCase().startsWith('server premium');
+       const premium=String(info.audience||'').toLowerCase()==='premium';
        const message=premium?'Video Khusus Premium, Silahkan Upgrade Status Akun.':'Video Khusus VIP & Premium, Silahkan Upgrade Status Akun.';
-       const upgradeUrl=premium?'vip.html?plan=premium':'vip.html?plan=vip';
-       if(state){state.hidden=false;state.classList.add('error');state.innerHTML='<strong>'+message+'</strong><p><a class="btn btn-light" href="'+upgradeUrl+'">Upgrade</a></p>';}
+       if(state){state.hidden=false;state.classList.add('error');state.innerHTML='<strong>'+message+'</strong><p><a class="btn btn-light" href="vip.html">Upgrade</a></p>';}
        const status=$('statusText');if(status)status.textContent=message;
      }else fail('Video tidak ditemukan, belum dipublikasikan, atau link belum tersimpan.');
      return;

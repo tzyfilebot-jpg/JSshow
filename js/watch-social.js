@@ -32,7 +32,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   const likeButton = $('likeVideoButton');
   const commentJumpButton = $('commentJumpButton');
   const shareButton = $('shareVideoButton');
-  const shareCount = $('shareCount');
   const favoriteButton = $('favoriteVideoButton');
   const commentForm = $('commentForm');
   const commentInput = $('commentInput');
@@ -42,10 +41,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   let videoReady = false;
   const downloadPageButton = $('downloadPageButton');
   const commentSubmitButton = commentForm?.querySelector('[type="submit"]');
-  // Disable database-backed actions until the video ID is resolved.
-  if (likeButton) likeButton.disabled = true;
-  if (favoriteButton) favoriteButton.disabled = true;
-  if (commentSubmitButton) commentSubmitButton.disabled = true;
+  // Keep controls responsive while metadata loads so logged-out users always get feedback.
+  if (likeButton) likeButton.disabled = false;
+  if (favoriteButton) favoriteButton.disabled = false;
+  if (commentSubmitButton) commentSubmitButton.disabled = false;
   downloadPageButton?.addEventListener('click', event => {
     // watch.js resolves the canonical video first. Reuse its result so a separate
     // social RPC failure cannot leave the Download anchor permanently blocked.
@@ -73,7 +72,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
         notice('Link video berhasil disalin. Silakan tempel untuk membagikannya.', 'success');
-        recordShareEvent();
         return;
       }
       throw new Error('Clipboard API tidak tersedia');
@@ -90,7 +88,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         field.setSelectionRange(0, field.value.length);
         const copied = document.execCommand('copy');
         field.remove();
-        if (copied) { notice('Link video berhasil disalin. Silakan tempel untuk membagikannya.', 'success'); recordShareEvent(); }
+        if (copied) notice('Link video berhasil disalin. Silakan tempel untuk membagikannya.', 'success');
         else notice('Link belum dapat disalin otomatis. Salin link ini: ' + shareUrl, 'error');
       } catch (_) {
         notice('Link belum dapat disalin otomatis. Salin link ini: ' + shareUrl, 'error');
@@ -100,9 +98,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
   if (!window.supabase?.createClient) {
     notice('Library database gagal dimuat. Bagikan dan navigasi komentar tetap tersedia; fitur database perlu koneksi Supabase.');
-    if (likeButton) likeButton.disabled = true;
-    if (favoriteButton) favoriteButton.disabled = true;
-    if (commentForm) commentForm.addEventListener('submit', e => { e.preventDefault(); notice('Komentar belum dapat dikirim karena koneksi database tidak tersedia.'); });
+    if (likeButton) likeButton.addEventListener('click', () => notice('Like belum tersedia karena koneksi database gagal dimuat. Coba muat ulang halaman.', 'error'));
+    if (favoriteButton) favoriteButton.addEventListener('click', () => notice('Favorit belum tersedia karena koneksi database gagal dimuat. Coba muat ulang halaman.', 'error'));
+    if (commentForm) commentForm.addEventListener('submit', e => { e.preventDefault(); notice('Komentar belum dapat dikirim karena koneksi database tidak tersedia.', 'error'); });
     return;
   }
 
@@ -110,31 +108,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     auth: { persistSession: true, autoRefreshToken: true, storageKey: 'sb-ordvxiydkxbtahjpseph-auth-token' }
   });
 
-  async function recordShareEvent() {
-    if (!videoId && window.__jsvideyVideoId) videoId = window.__jsvideyVideoId;
-    if (!videoId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(videoId)) return;
-    try {
-      const { data, error } = await db.rpc('jsvidey_record_video_share', { p_video_id: videoId });
-      if (!error && shareCount && data != null) shareCount.textContent = String(data);
-    } catch (_) {}
-  }
-
-  async function loadSocialCounts() {
-    if (!videoId && window.__jsvideyVideoId) videoId = window.__jsvideyVideoId;
-    if (!videoId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(videoId)) return;
-    try {
-      const { data, error } = await db.rpc('jsvidey_get_video_social_counts', { p_video_ids: [videoId] });
-      if (error || !data?.length) return;
-      const row = data[0];
-      const comments = $('commentCount');
-      if (comments) comments.textContent = String(row.comment_count || 0);
-      if (shareCount) shareCount.textContent = String(row.share_count || 0);
-      const likes = $('likeCount');
-      if (likes) likes.textContent = String(row.like_count || 0);
-    } catch (_) {}
-  }
-  loadSocialCounts();
-  window.addEventListener('jsvidey:video-ready', event => { if (event.detail?.id) videoId = event.detail.id; loadSocialCounts(); });
   let liked = false;
   let likeCount = 0;
   let favorited = false;
@@ -267,15 +240,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   likeButton?.addEventListener('click', async () => {
     likeButton.disabled = true;
     try {
-      await requireVideo();
       const { data: authData, error: authError } = await db.auth.getUser();
       if (authError) throw authError;
       const user = authData?.user;
       if (!user) {
         notice('Untuk memberi Like, silakan login terlebih dahulu. Mengalihkan ke halaman login…');
-        setTimeout(() => { location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : '/watch.html?id=' + videoId); }, 1200);
+        setTimeout(() => { location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : location.pathname + location.search); }, 1200);
         return;
       }
+      await requireVideo();
       const nextLiked = !liked;
       const { data, error } = await db.rpc('set_video_like', {
         p_video_id: videoId,
@@ -301,15 +274,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   favoriteButton?.addEventListener('click', async () => {
     favoriteButton.disabled = true;
     try {
-      await requireVideo();
       const { data, error: authError } = await db.auth.getUser();
       if (authError) throw authError;
       const user = data?.user;
       if (!user) {
         notice('Untuk menyimpan video ke Favorit, silakan login terlebih dahulu. Mengalihkan ke halaman login…');
-        setTimeout(() => { location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : '/watch.html?id=' + videoId); }, 1200);
+        setTimeout(() => { location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : location.pathname + location.search); }, 1200);
         return;
       }
+      await requireVideo();
       if (favorited) {
         const { error } = await db.from('video_favorites').delete().eq('user_id', user.id).eq('video_id', videoId);
         if (error) throw error;
@@ -341,15 +314,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     const submitButton = event.submitter || commentForm.querySelector('[type="submit"]');
     if (submitButton) submitButton.disabled = true;
     try {
-      await requireVideo();
       const { data, error: authError } = await db.auth.getUser();
       if (authError) throw authError;
       const user = data?.user;
       if (!user) {
         notice('Untuk mengirim komentar, silakan login terlebih dahulu. Mengalihkan ke halaman login…');
-        setTimeout(() => { location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : '/watch.html?id=' + videoId); }, 1200);
+        setTimeout(() => { location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : location.pathname + location.search); }, 1200);
         return;
       }
+      await requireVideo();
       const { error } = await db.from('video_comments').insert({
         video_id: videoId,
         visitor_id: user.id,
@@ -378,17 +351,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   async function loadRelatedVideos() {
     const grid = $('relatedVideoGrid');
     if (!grid) return;
-    // Never leave the initial spinner on screen indefinitely.
-    const timeout = (promise, ms = 12000) => Promise.race([
-      promise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Permintaan katalog terlalu lama. Muat ulang halaman atau periksa koneksi Supabase.')), ms))
-    ]);
     try {
-      // Use the same public-safe catalog RPC as Home, Categories and Dashboard.
-      // This keeps VIP/Premium videos visible as locked cards instead of hiding them.
-      const { data, error } = await timeout(db.rpc('jsvidey_catalog_videos'));
+      // Catalog query only reads the public fields granted by the catalog migration.
+      const { data, error } = await db.from('videos')
+        .select('id,title,slug,thumbnail_url,created_at,status')
+        .eq('status', 'published')
+        .order('created_at', { ascending: false })
+        .limit(12);
       if (error) throw error;
-      const rows = (data || []).filter(row => row.id !== videoId).slice(0, 12);
+      const rows = (data || []).filter(row => row.id !== videoId);
       if (!rows.length) {
         grid.innerHTML = '<p class="related-loading">Belum ada video lainnya.</p>';
         return;
@@ -396,9 +367,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
       const ids = rows.map(row => row.id);
       let counts = new Map();
-      const { data: countRows, error: countError } = await timeout(db.rpc('jsvidey_get_video_social_counts', {
+      const { data: countRows, error: countError } = await db.rpc('jsvidey_get_video_social_counts', {
         p_video_ids: ids
-      }), 12000);
+      });
       if (!countError && Array.isArray(countRows)) {
         counts = new Map(countRows.map(row => [row.video_id, row]));
       } else {
@@ -446,8 +417,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       }
     } catch (error) {
       console.error('Related videos failed to load:', error);
-      const detail = error?.message || 'Periksa migrasi SQL katalog dan izin akses Supabase.';
-      grid.innerHTML = '<p class="related-loading related-error">Video lainnya gagal dimuat. ' + safeText(detail) + '</p>';
+      grid.innerHTML = '<p class="related-loading">Video lainnya belum dapat dimuat. Periksa izin katalog video di Supabase.</p>';
     }
   }
 
@@ -460,15 +430,29 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       if (commentSubmitButton) commentSubmitButton.disabled = false;
       const results = await Promise.allSettled([loadLikes(), loadComments(), loadFavorite()]);
       const failed = results.filter(result => result.status === 'rejected');
+      if (results[1]?.status === 'rejected' && commentList) {
+        commentList.replaceChildren();
+        const message = document.createElement('p');
+        message.className = 'empty-comments';
+        message.textContent = 'Komentar belum dapat dimuat. Periksa koneksi atau izin tabel komentar, lalu muat ulang halaman.';
+        commentList.append(message);
+      }
       if (failed.length) {
         console.error('Some social features could not initialize:', failed.map(result => result.reason));
-        notice('Sebagian interaksi belum aktif. Periksa migrasi SQL sosial dan kebijakan akses Supabase.');
+        notice('Sebagian interaksi belum aktif. Coba lagi; jika berlanjut, periksa izin database Supabase.', 'error');
       }
     } catch (error) {
       videoLoadError = error;
       loadRelatedVideos();
       console.error('Social video lookup failed:', error);
-      notice(error.message || 'Interaksi video gagal dimuat.');
+      if (commentList) {
+        commentList.replaceChildren();
+        const message = document.createElement('p');
+        message.className = 'empty-comments';
+        message.textContent = 'Komentar belum dapat dimuat karena data video belum berhasil dibaca. Muat ulang halaman atau periksa RPC lookup video di Supabase.';
+        commentList.append(message);
+      }
+      notice('Data video belum berhasil dimuat: ' + (error.message || 'periksa koneksi Supabase.'), 'error');
       if (window.__jsvideyVideoId) {
         videoId = window.__jsvideyVideoId;
         videoSlug = window.__jsvideyVideoSlug || videoSlug;
