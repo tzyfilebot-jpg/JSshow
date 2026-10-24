@@ -62,7 +62,7 @@ BEGIN
         SELECT v.id, v.title, v.video_url, v.status, v.created_at, v.audience
         FROM public.videos v WHERE v.id = p_video_id AND v.status = 'published'
           AND v.video_url IS NOT NULL AND (v.audience = 'public' OR auth.uid() IS NOT NULL) LIMIT 1;
-      $body$$ddl$;
+      $body$ $ddl$;
   ELSE
     SELECT ('audience' = ANY(COALESCE(p.proargnames, ARRAY[]::text[]))) INTO has_audience
     FROM pg_proc p WHERE p.oid = to_regprocedure('public.get_public_embed_video(uuid)');
@@ -73,7 +73,7 @@ BEGIN
           SELECT v.id, v.title, v.video_url, v.status, v.created_at, v.audience
           FROM public.videos v WHERE v.id = p_video_id AND v.status = 'published'
             AND v.video_url IS NOT NULL AND (v.audience = 'public' OR auth.uid() IS NOT NULL) LIMIT 1;
-        $body$$ddl$;
+        $body$ $ddl$;
     ELSE
       EXECUTE $ddl$CREATE OR REPLACE FUNCTION public.get_public_embed_video(p_video_id uuid)
         RETURNS TABLE (id uuid, title text, video_url text, status text, created_at timestamptz)
@@ -81,7 +81,7 @@ BEGIN
           SELECT v.id, v.title, v.video_url, v.status, v.created_at
           FROM public.videos v WHERE v.id = p_video_id AND v.status = 'published'
             AND v.video_url IS NOT NULL AND (v.audience = 'public' OR auth.uid() IS NOT NULL) LIMIT 1;
-        $body$$ddl$;
+        $body$ $ddl$;
     END IF;
   END IF;
 
@@ -92,7 +92,7 @@ BEGIN
         SELECT v.id, v.title, v.video_url, v.status, v.slug, v.audience
         FROM public.videos v WHERE v.slug = p_slug AND v.status = 'published'
           AND v.video_url IS NOT NULL AND (v.audience = 'public' OR auth.uid() IS NOT NULL) LIMIT 1;
-      $body$$ddl$;
+      $body$ $ddl$;
   ELSE
     SELECT ('audience' = ANY(COALESCE(p.proargnames, ARRAY[]::text[]))) INTO has_audience
     FROM pg_proc p WHERE p.oid = to_regprocedure('public.get_public_embed_video_by_slug(text)');
@@ -103,7 +103,7 @@ BEGIN
           SELECT v.id, v.title, v.video_url, v.status, v.slug, v.audience
           FROM public.videos v WHERE v.slug = p_slug AND v.status = 'published'
             AND v.video_url IS NOT NULL AND (v.audience = 'public' OR auth.uid() IS NOT NULL) LIMIT 1;
-        $body$$ddl$;
+        $body$ $ddl$;
     ELSE
       EXECUTE $ddl$CREATE OR REPLACE FUNCTION public.get_public_embed_video_by_slug(p_slug text)
         RETURNS TABLE (id uuid, title text, video_url text, status text, slug text)
@@ -111,7 +111,7 @@ BEGIN
           SELECT v.id, v.title, v.video_url, v.status, v.slug
           FROM public.videos v WHERE v.slug = p_slug AND v.status = 'published'
             AND v.video_url IS NOT NULL AND (v.audience = 'public' OR auth.uid() IS NOT NULL) LIMIT 1;
-        $body$$ddl$;
+        $body$ $ddl$;
     END IF;
   END IF;
 END $$;
