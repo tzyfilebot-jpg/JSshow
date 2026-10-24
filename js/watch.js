@@ -44,7 +44,7 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    window.__sourceVideoUrl=url;
    const titleEl=$('videoTitle');if(titleEl)titleEl.textContent=title||'Video Jsvidey';
    if(m.direct){if(ratioTools)ratioTools.hidden=true;iframe.removeAttribute('src');frame.hidden=true;player.src=m.embed;player.hidden=false;player.onloadedmetadata=()=>{if(player.videoWidth&&player.videoHeight){player.style.aspectRatio=player.videoWidth+'/'+player.videoHeight;}};}
-   else{player.pause();player.removeAttribute('src');player.load();player.hidden=true;iframe.src=m.embed;frame.hidden=false;const isDrive=m.provider==='Google Drive';if(ratioTools)ratioTools.hidden=!isDrive;setRatio(isDrive?'portrait':'landscape');}
+   else{player.pause();player.removeAttribute('src');player.load();player.hidden=true;iframe.src=m.embed;frame.hidden=false;const isDrive=m.provider==='Google Drive';if(ratioTools)ratioTools.hidden=!isDrive;setRatio('landscape');}
    if(state)state.hidden=true;
    const status=$('statusText');
    if(status)status.textContent='Media: '+m.provider+'. Tombol Download tersedia di bagian bawah video jika penyedia mendukungnya.';
