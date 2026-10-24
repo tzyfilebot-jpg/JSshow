@@ -66,3 +66,8 @@ Setelah migrasi dasar, `jsvidey_admin_control_center.sql`, dan `jsvidey_dashboar
 Setelah migrasi dasar admin, `jsvidey_nav_menu.sql`, `jsvidey_dashboard_vip.sql`, `jsvidey_payment_orders.sql`, `jsvidey_cashi_integration.sql`, dan `jsvidey_admin_monetization_online.sql` diterapkan, jalankan `jsvidey_admin_full_control.sql` paling akhir. Migrasi ini menambah hitungan sesi online (tamu dan member), akses minimum Basic/VIP/Premium untuk item navbar, RPC untuk mengubah akses media Basic/VIP/Premium, konfigurasi `page_controls`, serta alasan wajib untuk menyetujui/menolak pembayaran membership.
 
 Di Panel Admin, tab **Kontrol per halaman** mengatur maintenance, kode iklan, format iklan, gambar promosi, link tujuan, dan posisi promosi untuk halaman atau kategori terpilih. Pemeriksaan halaman menguji respons HTTP dan aset lokal; ini tidak menggantikan pengujian manual JavaScript/browser dan tidak mendeteksi setiap error runtime. Hitungan online adalah perkiraan sesi browser aktif dalam 2 menit, bukan jumlah orang unik yang terverifikasi.
+
+
+## Watch page: komentar, related videos, dan counter Bagikan (audit 2026-10-25)
+
+Setelah `jsvidey-social-database.sql` berhasil, jalankan `jsvidey_watch_related_counts.sql` untuk memasang RPC agregat yang sesuai dengan frontend terbaru (`share_count`) dan tabel pencatatan Bagikan. File ini melakukan DROP lalu CREATE pada RPC agregat karena PostgreSQL tidak dapat mengganti nama/tipe kolom OUT melalui `CREATE OR REPLACE`. Backup database sebelum menjalankan; jangan menjalankan file ini jika tabel `videos`, `video_likes`, atau `video_comments` belum ada.
