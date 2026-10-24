@@ -10,7 +10,7 @@ button,a{-webkit-tap-highlight-color:transparent}
 .kicker-divider{color:#455673}
 .player-card{overflow:hidden;border:1px solid var(--line);border-radius:22px;background:linear-gradient(145deg,rgba(20,31,51,.98),rgba(11,17,29,.98));box-shadow:0 22px 70px #0006}
 .player-stage{position:relative;background:#020308;min-height:220px}
-.embed-frame{position:relative;width:100%;aspect-ratio:16/9;background:#020308;transition:aspect-ratio .18s ease;max-height: min(72vh, 720px)}.embed-frame.landscape{aspect-ratio:16/9}.embed-frame iframe{display:block}.ratio-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:9px 12px;background:#080d18;border-bottom:1px solid var(--line);color:#9baac3;font-size:.78rem}.ratio-tools button{border:1px solid #293b57;border-radius:9px;padding:7px 10px;background:#111c2e;color:#cbd8ed;font-size:.76rem}.ratio-tools button[aria-pressed="true"]{background:#173e65;border-color:#398fff;color:#fff}.ratio-tools[hidden]{display:none!important}
+.embed-frame{position:relative;width:100%;aspect-ratio:16/9;background:#020308;transition:aspect-ratio .18s ease;max-height: min(72vh, 720px)}.embed-frame.landscape{aspect-ratio:16/9}.embed-frame.portrait{aspect-ratio:9/16;max-height:min(78vh,820px);min-height:300px}.embed-frame iframe{display:block}.ratio-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:9px 12px;background:#080d18;border-bottom:1px solid var(--line);color:#9baac3;font-size:.78rem}.ratio-tools button{border:1px solid #293b57;border-radius:9px;padding:7px 10px;background:#111c2e;color:#cbd8ed;font-size:.76rem}.ratio-tools button[aria-pressed="true"]{background:#173e65;border-color:#398fff;color:#fff}.ratio-tools[hidden]{display:none!important}
 .embed-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 video{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;background:#000;object-fit:contain}
 .state{min-height:clamp(220px,56vw,540px);display:flex;flex-direction:column;gap:13px;align-items:center;justify-content:center;padding:25px;text-align:center;color:#b9c8e1;background:radial-gradient(ellipse at center,#111c30,#03050a 75%)}
@@ -69,4 +69,11 @@ video{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;bac
 @media(max-width:620px){.social-actions{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
 /* Watch page polish: landscape-first embeds and tighter mobile spacing. */
-.player-stage{min-height:0;overflow:hidden}.embed-frame{max-height:min(72vh,720px);min-height:220px}.embed-frame iframe{background:#000}.ratio-tools{justify-content:flex-end;flex-wrap:wrap}.video-info{background:linear-gradient(145deg,rgba(16,24,39,.98),rgba(9,15,26,.98))}.watch-shell{padding-top:22px}.player-card{box-shadow:0 14px 42px #0005}@media(max-width:600px){.embed-frame{aspect-ratio:16/9;min-height:0;max-height:65vh}.watch-shell{padding-top:16px}.video-info h1{font-size:clamp(1.25rem,5vw,1.65rem)}.ratio-tools{gap:6px;padding:8px}.ratio-tools>span{margin-right:auto}.ratio-tools button{padding:7px 9px}}
+.player-stage{min-height:0;overflow:hidden}.embed-frame{max-height:min(72vh,720px);min-height:220px}.embed-frame iframe{background:#000}.ratio-tools{justify-content:flex-end;flex-wrap:wrap}.video-info{background:linear-gradient(145deg,rgba(16,24,39,.98),rgba(9,15,26,.98))}.watch-shell{padding-top:22px}.player-card{box-shadow:0 14px 42px #0005}@media(max-width:600px){.embed-frame{aspect-ratio:16/9;min-height:0;max-height:65vh}.embed-frame.portrait{aspect-ratio:9/16;min-height:300px;max-height:78vh}.watch-shell{padding-top:16px}.video-info h1{font-size:clamp(1.25rem,5vw,1.65rem)}.ratio-tools{gap:6px;padding:8px}.ratio-tools>span{margin-right:auto}.ratio-tools button{padding:7px 9px}}
+
+/* Watch interaction and responsive embed fixes */
+.embed-frame iframe{object-fit:contain;background:#000}
+.player-stage video{display:block;width:100%;height:auto;max-height:78vh;background:#000;object-fit:contain}
+.social-action:disabled{opacity:.58;cursor:wait;transform:none}
+.social-notice{overflow-wrap:anywhere}
+@media(max-width:420px){.ratio-tools>span{width:100%;text-align:left}.ratio-tools{justify-content:stretch}.ratio-tools button{flex:1}}
