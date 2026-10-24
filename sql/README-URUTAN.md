@@ -71,3 +71,8 @@ Di Panel Admin, tab **Kontrol per halaman** mengatur maintenance, kode iklan, fo
 ## Watch page: komentar, related videos, dan counter Bagikan (audit 2026-10-25)
 
 Setelah `jsvidey-social-database.sql` berhasil, jalankan `jsvidey_watch_related_counts.sql` untuk memasang RPC agregat yang sesuai dengan frontend terbaru (`share_count`) dan tabel pencatatan Bagikan. File ini melakukan DROP lalu CREATE pada RPC agregat karena PostgreSQL tidak dapat mengganti nama/tipe kolom OUT melalui `CREATE OR REPLACE`. Backup database sebelum menjalankan; jangan menjalankan file ini jika tabel `videos`, `video_likes`, atau `video_comments` belum ada.
+
+
+## Catatan perbaikan halaman Watch (2026-10-25)
+
+Untuk komentar, Like, Favorit, dan jumlah Bagikan, pastikan migrasi `jsvidey-social-database.sql` dan `fix_social_interactions_safe.sql` sudah berhasil diterapkan. Untuk daftar Video Lainnya dan penghitungannya, jalankan `jsvidey_watch_related_counts.sql` serta pastikan `jsvidey_catalog_videos()` tersedia (misalnya dari `jsvidey_dashboard_vip.sql`). Jangan menjalankan migrasi sebelum tabel dasar `public.videos` tersedia. Tombol tutup overlay Play kini menutup overlay agar kontrol di bawahnya dapat disentuh; daftar video terkait ditampilkan lebih dahulu tanpa menunggu RPC hitungan sosial.
