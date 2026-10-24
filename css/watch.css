@@ -77,3 +77,12 @@ video{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;bac
 .social-action:disabled{opacity:.58;cursor:wait;transform:none}
 .social-notice{overflow-wrap:anywhere}
 @media(max-width:420px){.ratio-tools>span{width:100%;text-align:left}.ratio-tools{justify-content:stretch}.ratio-tools button{flex:1}}
+
+/* Watch preview + related video cards */
+.watch-preview{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#03050a}
+.watch-preview[hidden]{display:none!important}.watch-preview img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.watch-preview-shade{position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.78),rgba(0,0,0,.12))}
+#watchPlayButton{position:relative;z-index:2;display:flex;align-items:center;gap:12px;border:1px solid #ffffff55;border-radius:999px;padding:15px 24px;background:linear-gradient(120deg,#287dff,#13b8d5);color:#fff;font-weight:800;box-shadow:0 8px 35px #0008;cursor:pointer}
+#watchPlayButton i{font-size:1.2rem}#watchLoading{position:absolute;z-index:3;bottom:18px;margin:0;color:#fff;background:#0009;padding:9px 14px;border-radius:999px}
+.related-videos{margin-top:28px}.related-video-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.related-card{overflow:hidden;border:1px solid var(--line);border-radius:15px;background:var(--panel);color:#f4f7ff;text-decoration:none;min-width:0}.related-thumb{position:relative;aspect-ratio:16/9;background:#111827}.related-thumb img{width:100%;height:100%;object-fit:cover}.related-tier{position:absolute;left:8px;top:8px;padding:4px 7px;border-radius:7px;background:#111d;color:#fff;font-size:.65rem;font-weight:800}.related-copy{padding:11px}.related-title{font-weight:750;font-size:.9rem;line-height:1.35}.related-stats{display:flex;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:.72rem;margin-top:8px}.related-loading{color:var(--muted);grid-column:1/-1}
+@media(max-width:650px){.related-video-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.related-copy{padding:9px}.related-title{font-size:.8rem}}
