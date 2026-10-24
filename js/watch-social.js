@@ -242,6 +242,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       if (authError) throw authError;
       const user = authData?.user;
       if (!user) {
+        notice('Silakan login terlebih dahulu untuk menggunakan Like.');
         location.href = 'login.html?next=' + encodeURIComponent('watch.html?id=' + videoId);
         return;
       }
@@ -275,6 +276,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       if (authError) throw authError;
       const user = data?.user;
       if (!user) {
+        notice('Silakan login terlebih dahulu untuk menyimpan Favorit.');
         location.href = 'login.html?next=' + encodeURIComponent('watch.html?id=' + videoId);
         return;
       }

@@ -9,7 +9,7 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
  const state=$('state'),player=$('player'),frame=$('embedFrame'),iframe=$('embedPlayer');
  const ratioTools=$('ratioTools');
  const ratioButtons=ratioTools?Array.from(ratioTools.querySelectorAll('[data-ratio]')):[];
- function setRatio(mode){if(frame){frame.classList.toggle('landscape',mode==='landscape');}ratioButtons.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.ratio===mode)));}
+ function setRatio(mode){if(frame){frame.classList.toggle('landscape',mode==='landscape');frame.classList.toggle('portrait',mode==='portrait');}ratioButtons.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.ratio===mode)));}
  ratioButtons.forEach(b=>b.addEventListener('click',()=>setRatio(b.dataset.ratio)));
  function fail(message){
    if(state){state.hidden=false;state.classList.add('error');state.textContent=message;}
@@ -43,7 +43,7 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    const m=classify(url);
    window.__sourceVideoUrl=url;
    const titleEl=$('videoTitle');if(titleEl)titleEl.textContent=title||'Video Jsvidey';
-   if(m.direct){if(ratioTools)ratioTools.hidden=true;iframe.removeAttribute('src');frame.hidden=true;player.src=m.embed;player.hidden=false;player.onloadedmetadata=()=>{if(player.videoWidth&&player.videoHeight){player.style.aspectRatio=player.videoWidth+'/'+player.videoHeight;}};}
+   if(m.direct){if(ratioTools)ratioTools.hidden=true;frame.classList.remove('portrait','landscape');iframe.removeAttribute('src');frame.hidden=true;player.src=m.embed;player.hidden=false;player.controls=true;player.setAttribute('controls','');player.onloadedmetadata=()=>{if(player.videoWidth&&player.videoHeight){player.style.aspectRatio=player.videoWidth+'/'+player.videoHeight;}};}
    else{player.pause();player.removeAttribute('src');player.load();player.hidden=true;iframe.src=m.embed;frame.hidden=false;const isDrive=m.provider==='Google Drive';if(ratioTools)ratioTools.hidden=!isDrive;setRatio('landscape');}
    if(state)state.hidden=true;
    const status=$('statusText');
