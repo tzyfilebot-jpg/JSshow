@@ -3,9 +3,16 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 (() => {
   const $ = id => document.getElementById(id);
-  const notice = message => {
+  let noticeTimer = null;
+  const notice = (message, kind = 'info') => {
     const el = $('socialNotice');
-    if (el) el.textContent = message;
+    if (!el) return;
+    el.textContent = message;
+    el.dataset.kind = kind;
+    el.classList.add('is-visible');
+    el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+    if (noticeTimer) clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => el.classList.remove('is-visible'), 5200);
   };
   const params = new URLSearchParams(location.search);
   let videoId = params.get('id');
@@ -25,6 +32,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   const likeButton = $('likeVideoButton');
   const commentJumpButton = $('commentJumpButton');
   const shareButton = $('shareVideoButton');
+  const shareCount = $('shareCount');
   const favoriteButton = $('favoriteVideoButton');
   const commentForm = $('commentForm');
   const commentInput = $('commentInput');
@@ -55,40 +63,37 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
   // These actions are local/browser actions and must remain responsive even if Supabase fails.
   commentJumpButton?.addEventListener('click', () => {
+    notice('Bagian komentar dibuka. Tulis komentarmu lalu tekan Kirim komentar.');
     commentsSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     commentInput?.focus({ preventScroll: true });
   });
   shareButton?.addEventListener('click', async () => {
     const shareUrl = window.__jsvideyShareUrl || (videoSlug ? location.origin + '/v/' + encodeURIComponent(videoSlug) : (videoId ? location.origin + '/watch.html?id=' + encodeURIComponent(videoId) : location.href));
     try {
-      if (navigator.share) {
-        await navigator.share({ title: document.title, url: shareUrl });
-        notice('Link video berhasil dibagikan.');
-        return;
-      }
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
-        notice('Link video berhasil disalin.');
+        notice('Link video berhasil disalin. Silakan tempel untuk membagikannya.', 'success');
+        recordShareEvent();
         return;
       }
-      throw new Error('Clipboard tidak tersedia');
-    } catch (error) {
-      if (error?.name === 'AbortError') return;
+      throw new Error('Clipboard API tidak tersedia');
+    } catch (_) {
       // Fallback for browsers without Clipboard API / non-secure contexts.
       try {
         const field = document.createElement('textarea');
         field.value = shareUrl;
         field.setAttribute('readonly', '');
         field.style.position = 'fixed';
-        field.style.opacity = '0';
+        field.style.left = '-9999px';
         document.body.append(field);
         field.select();
+        field.setSelectionRange(0, field.value.length);
         const copied = document.execCommand('copy');
         field.remove();
-        if (copied) notice('Link video berhasil disalin.');
-        else notice('Salin link video ini: ' + shareUrl);
+        if (copied) { notice('Link video berhasil disalin. Silakan tempel untuk membagikannya.', 'success'); recordShareEvent(); }
+        else notice('Link belum dapat disalin otomatis. Salin link ini: ' + shareUrl, 'error');
       } catch (_) {
-        notice('Salin link video ini: ' + shareUrl);
+        notice('Link belum dapat disalin otomatis. Salin link ini: ' + shareUrl, 'error');
       }
     }
   });
@@ -105,6 +110,31 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     auth: { persistSession: true, autoRefreshToken: true, storageKey: 'sb-ordvxiydkxbtahjpseph-auth-token' }
   });
 
+  async function recordShareEvent() {
+    if (!videoId && window.__jsvideyVideoId) videoId = window.__jsvideyVideoId;
+    if (!videoId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(videoId)) return;
+    try {
+      const { data, error } = await db.rpc('jsvidey_record_video_share', { p_video_id: videoId });
+      if (!error && shareCount && data != null) shareCount.textContent = String(data);
+    } catch (_) {}
+  }
+
+  async function loadSocialCounts() {
+    if (!videoId && window.__jsvideyVideoId) videoId = window.__jsvideyVideoId;
+    if (!videoId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(videoId)) return;
+    try {
+      const { data, error } = await db.rpc('jsvidey_get_video_social_counts', { p_video_ids: [videoId] });
+      if (error || !data?.length) return;
+      const row = data[0];
+      const comments = $('commentCount');
+      if (comments) comments.textContent = String(row.comment_count || 0);
+      if (shareCount) shareCount.textContent = String(row.share_count || 0);
+      const likes = $('likeCount');
+      if (likes) likes.textContent = String(row.like_count || 0);
+    } catch (_) {}
+  }
+  loadSocialCounts();
+  window.addEventListener('jsvidey:video-ready', event => { if (event.detail?.id) videoId = event.detail.id; loadSocialCounts(); });
   let liked = false;
   let likeCount = 0;
   let favorited = false;
@@ -242,8 +272,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       if (authError) throw authError;
       const user = authData?.user;
       if (!user) {
-        notice('Silakan login terlebih dahulu untuk menggunakan Like.');
-        location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : '/watch.html?id=' + videoId);
+        notice('Untuk memberi Like, silakan login terlebih dahulu. Mengalihkan ke halaman login…');
+        setTimeout(() => { location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : '/watch.html?id=' + videoId); }, 1200);
         return;
       }
       const nextLiked = !liked;
@@ -261,7 +291,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       renderLikes();
       notice(liked ? 'Video disukai.' : 'Like dibatalkan.');
     } catch (error) {
-      notice(error?.message ? 'Like gagal: ' + error.message : 'Like gagal. Login dan pastikan sql/fix_social_interactions_safe.sql sudah diterapkan di Supabase.');
+      notice(error?.message ? 'Like gagal: ' + error.message : 'Like gagal. Periksa login dan pengaturan database.', 'error');
       console.error('Like action failed:', error);
     } finally {
       likeButton.disabled = false;
@@ -276,8 +306,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       if (authError) throw authError;
       const user = data?.user;
       if (!user) {
-        notice('Silakan login terlebih dahulu untuk menyimpan Favorit.');
-        location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : '/watch.html?id=' + videoId);
+        notice('Untuk menyimpan video ke Favorit, silakan login terlebih dahulu. Mengalihkan ke halaman login…');
+        setTimeout(() => { location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : '/watch.html?id=' + videoId); }, 1200);
         return;
       }
       if (favorited) {
@@ -293,7 +323,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       }
       renderFavorite();
     } catch (error) {
-      notice(error?.message ? 'Favorit gagal: ' + error.message : 'Favorit gagal. Login dan pastikan sql/fix_social_interactions_safe.sql sudah diterapkan di Supabase.');
+      notice(error?.message ? 'Favorit gagal: ' + error.message : 'Favorit gagal. Periksa login dan pengaturan database.', 'error');
       console.error('Favorite action failed:', error);
     } finally {
       favoriteButton.disabled = false;
@@ -316,7 +346,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       if (authError) throw authError;
       const user = data?.user;
       if (!user) {
-        location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : '/watch.html?id=' + videoId);
+        notice('Untuk mengirim komentar, silakan login terlebih dahulu. Mengalihkan ke halaman login…');
+        setTimeout(() => { location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : '/watch.html?id=' + videoId); }, 1200);
         return;
       }
       const { error } = await db.from('video_comments').insert({
@@ -330,7 +361,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       notice('Komentar berhasil disimpan.');
       await loadComments();
     } catch (error) {
-      notice('Komentar gagal: ' + (error?.message || 'Periksa login, tabel video_comments, dan izin Supabase.'));
+      notice('Komentar gagal: ' + (error?.message || 'Periksa login, tabel video_comments, dan izin Supabase.'), 'error');
       console.error('Comment submit failed:', error);
     } finally {
       if (submitButton) submitButton.disabled = false;
