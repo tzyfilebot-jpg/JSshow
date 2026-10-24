@@ -31,7 +31,7 @@ const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
    if(!window.supabase?.createClient){$('loginHint').textContent='Library Supabase tidak berhasil dimuat.';return}
    db=window.supabase.createClient(PAYMENT_SUPABASE_URL,PAYMENT_ANON_KEY);
    const {data:{user:u},error}=await db.auth.getUser();if(error)throw error;user=u;
-   if(!user){$('loginHint').textContent='Silakan login terlebih dahulu untuk membuat pesanan.';$('createOrder').textContent='Login untuk melanjutkan';$('createOrder').onclick=()=>location.href='login.html?next='+encodeURIComponent(location.pathname+location.search);return}
+   if(!user){$('loginHint').textContent='Silakan login terlebih dahulu untuk membuat pesanan.';$('createOrder').textContent='Login untuk melanjutkan';$('createOrder').disabled=false;$('createOrder').onclick=()=>location.href='login.html?next='+encodeURIComponent(location.pathname+location.search);return}
    $('loginHint').textContent='Login sebagai '+(user.email||'member');
    const {data:cfg}=await db.rpc('jsvidey_public_vip_config');const c=cfg||{};$('receiver').textContent=c.vip_cashi_receiver||'Sesuai informasi penerima pada aplikasi Cashi';
    $('createOrder').onclick=createOrder;$('retryCashi').onclick=()=>orderId&&createCashiInvoice(orderId);$('submitProof').onclick=submitProof;$('checkPayment').onclick=checkPayment;
