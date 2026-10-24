@@ -493,18 +493,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         return;
       }
 
+      // Render the catalog first; social count failures must not block the cards.
       const ids = rows.map(row => row.id);
       let counts = new Map();
-      const { data: countRows, error: countError } = await withTimeout(
-        db.rpc('jsvidey_get_video_social_counts', { p_video_ids: ids }),
-        12000, 'Statistik video lainnya terlalu lama dimuat.'
-      );
-      if (!countError && Array.isArray(countRows)) {
-        counts = new Map(countRows.map(row => [row.video_id, row]));
-      } else {
-        console.warn('Related video counts RPC unavailable. Apply sql/jsvidey_vip_social_premium_fix.sql or the updated watch-related migration.', countError);
-      }
-
       grid.replaceChildren();
       for (const row of rows) {
         const stats = counts.get(row.id) || {};
@@ -543,6 +534,30 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         copy.append(title, statLine);
         card.append(thumb, copy);
         grid.append(card);
+      }
+
+      // Cards are visible already; update their counts only if the optional RPC works.
+      try {
+        const { data: countRows, error: countError } = await withTimeout(
+          db.rpc('jsvidey_get_video_social_counts', { p_video_ids: ids }),
+          12000, 'Statistik video lainnya terlalu lama dimuat.'
+        );
+        if (countError) throw countError;
+        if (Array.isArray(countRows)) {
+          counts = new Map(countRows.map(row => [row.video_id, row]));
+          const cards = [...grid.querySelectorAll('.related-card')];
+          rows.forEach((row, index) => {
+            const stats = counts.get(row.id);
+            const statLine = cards[index]?.querySelector('.related-stats');
+            const spans = statLine?.querySelectorAll('span');
+            if (!stats || !spans || spans.length < 3) return;
+            spans[0].textContent = '♥ ' + Number(stats.like_count || 0) + ' Like';
+            spans[1].textContent = '▢ ' + Number(stats.comment_count || 0) + ' Komentar';
+            spans[2].textContent = '↗ ' + Number(stats.share_count || 0) + ' Bagikan';
+          });
+        }
+      } catch (countError) {
+        console.warn('Related video counts unavailable; cards remain visible.', countError);
       }
     } catch (error) {
       console.error('Related videos failed to load:', error);

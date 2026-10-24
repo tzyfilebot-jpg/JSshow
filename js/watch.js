@@ -21,7 +21,7 @@ const withTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu lama
  }
  function closeEntryNotice(){if(entryNotice)entryNotice.hidden=true;}
  if(entryJoin)entryJoin.href='https://t.me/+DqdGHeiPZA9mYTQx';
- if(entryClose)entryClose.addEventListener('click',()=>{ /* Keep video gate visible; close is intentionally disabled until Play. */ if(entryNotice)entryNotice.classList.add('watch-entry-attention'); });
+ if(entryClose)entryClose.addEventListener('click',()=>{ closeEntryNotice(); if(entryLoading)entryLoading.hidden=true; if(entryPlay){entryPlay.disabled=false;entryPlay.innerHTML='<i class="fa-solid fa-play"></i> Play';} playStarting=false; });
  if(entryPlay)entryPlay.addEventListener('click',async()=>{
    if(playStarting||!pendingVideo)return; playStarting=true; entryPlay.disabled=true;
    if(entryLoading)entryLoading.hidden=false; entryPlay.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Memuat…';
