@@ -59,3 +59,10 @@ Setelah migrasi dasar, `jsvidey_admin_control_center.sql`, dan `jsvidey_dashboar
 1. Jalankan `fix_social_interactions_safe.sql` di Supabase SQL Editor untuk fungsi Like/Favorit/komentar.
 2. Jalankan `jsvidey_random_video_codes.sql` untuk mengubah kode video menjadi 4 karakter acak sambil mempertahankan tautan lama melalui alias.
 3. Deploy ulang situs setelah ZIP terbaru dipasang.
+
+
+## Panel admin lengkap dan kontrol per halaman (update 2026-10-24)
+
+Setelah migrasi dasar admin, `jsvidey_nav_menu.sql`, `jsvidey_dashboard_vip.sql`, `jsvidey_payment_orders.sql`, `jsvidey_cashi_integration.sql`, dan `jsvidey_admin_monetization_online.sql` diterapkan, jalankan `jsvidey_admin_full_control.sql` paling akhir. Migrasi ini menambah hitungan sesi online (tamu dan member), akses minimum Basic/VIP/Premium untuk item navbar, RPC untuk mengubah akses media Basic/VIP/Premium, konfigurasi `page_controls`, serta alasan wajib untuk menyetujui/menolak pembayaran membership.
+
+Di Panel Admin, tab **Kontrol per halaman** mengatur maintenance, kode iklan, format iklan, gambar promosi, link tujuan, dan posisi promosi untuk halaman atau kategori terpilih. Pemeriksaan halaman menguji respons HTTP dan aset lokal; ini tidak menggantikan pengujian manual JavaScript/browser dan tidak mendeteksi setiap error runtime. Hitungan online adalah perkiraan sesi browser aktif dalam 2 menit, bukan jumlah orang unik yang terverifikasi.
