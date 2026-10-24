@@ -61,7 +61,9 @@ revoke all on function public.jsvidey_get_video_social_counts(uuid[]) from publi
 grant execute on function public.jsvidey_get_video_social_counts(uuid[]) to anon,authenticated;
 
 -- Enforce Basic < VIP < Premium. Expired memberships no longer unlock paid tiers.
-create or replace function public.get_public_embed_video(p_video_id uuid)
+-- The prior function may return a different OUT-row shape; PostgreSQL requires DROP before changing it.
+drop function if exists public.get_public_embed_video(uuid);
+create function public.get_public_embed_video(p_video_id uuid)
 returns table(id uuid,title text,video_url text,status text,created_at timestamptz,audience text)
 language sql stable security definer set search_path=public,auth as $$
  select v.id,v.title,v.video_url,v.status,v.created_at,coalesce(v.audience,'public')
@@ -84,7 +86,9 @@ $$;
 revoke all on function public.get_public_embed_video(uuid) from public;
 grant execute on function public.get_public_embed_video(uuid) to anon,authenticated;
 
-create or replace function public.get_public_embed_video_by_slug(p_slug text)
+-- Drop the slug variant too in case its existing OUT-row shape differs.
+drop function if exists public.get_public_embed_video_by_slug(text);
+create function public.get_public_embed_video_by_slug(p_slug text)
 returns table(id uuid,title text,video_url text,status text,slug text,audience text)
 language sql stable security definer set search_path=public,auth as $$
  select v.id,v.title,v.video_url,v.status,v.slug,coalesce(v.audience,'public')
