@@ -10,7 +10,7 @@ button,a{-webkit-tap-highlight-color:transparent}
 .kicker-divider{color:#455673}
 .player-card{overflow:hidden;border:1px solid var(--line);border-radius:22px;background:linear-gradient(145deg,rgba(20,31,51,.98),rgba(11,17,29,.98));box-shadow:0 22px 70px #0006}
 .player-stage{position:relative;background:#020308;min-height:220px}
-.embed-frame{position:relative;width:100%;aspect-ratio:16/9;background:#020308;transition:aspect-ratio .18s ease;max-height: min(72vh, 720px)}.embed-frame.landscape{aspect-ratio:16/9}.embed-frame.portrait{aspect-ratio:9/16;max-height:min(78vh,820px);min-height:300px}.embed-frame iframe{display:block}.ratio-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:9px 12px;background:#080d18;border-bottom:1px solid var(--line);color:#9baac3;font-size:.78rem}.ratio-tools button{border:1px solid #293b57;border-radius:9px;padding:7px 10px;background:#111c2e;color:#cbd8ed;font-size:.76rem}.ratio-tools button[aria-pressed="true"]{background:#173e65;border-color:#398fff;color:#fff}.ratio-tools[hidden]{display:none!important}
+.embed-frame{position:relative;width:100%;aspect-ratio:16/9;background:#020308;transition:aspect-ratio .18s ease;max-height: min(72vh, 720px)}.embed-frame.landscape{aspect-ratio:16/9;max-height:min(72svh,720px)}.embed-frame.portrait{aspect-ratio:9/16;max-height:min(78vh,820px);min-height:300px}.embed-frame iframe{display:block}.ratio-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:9px 12px;background:#080d18;border-bottom:1px solid var(--line);color:#9baac3;font-size:.78rem}.ratio-tools button{border:1px solid #293b57;border-radius:9px;padding:7px 10px;background:#111c2e;color:#cbd8ed;font-size:.76rem}.ratio-tools button[aria-pressed="true"]{background:#173e65;border-color:#398fff;color:#fff}.ratio-tools[hidden]{display:none!important}
 .embed-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 video{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;background:#000;object-fit:contain}
 .state{min-height:clamp(220px,56vw,540px);display:flex;flex-direction:column;gap:13px;align-items:center;justify-content:center;padding:25px;text-align:center;color:#b9c8e1;background:radial-gradient(ellipse at center,#111c30,#03050a 75%)}
@@ -97,3 +97,25 @@ video{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;bac
 .watch-entry-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 20px 20px}.watch-entry-actions button,.watch-entry-actions a{display:flex;min-height:46px;align-items:center;justify-content:center;gap:9px;border:0;border-radius:12px;padding:10px 12px;text-decoration:none;font-weight:800;cursor:pointer}.watch-entry-play{background:linear-gradient(135deg,#4bc5ff,#6b8cff);color:#061322}.watch-entry-play:disabled{opacity:.75;cursor:wait}.watch-entry-join{background:#172d49;border:1px solid #315579!important;color:#e5f4ff}.watch-entry-close{position:absolute;right:10px;top:10px;z-index:2;width:34px;height:34px;border:1px solid #ffffff45;border-radius:50%;background:#07101dcc;color:#fff;font-size:24px;line-height:1;cursor:pointer}.watch-entry-attention{animation:watchEntryShake .25s ease}
 @keyframes watchEntryIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes watchEntryShake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
 @media(max-width:420px){.watch-entry-actions{grid-template-columns:1fr}.watch-entry-thumbnail{max-height:220px}}
+
+
+/* Responsive embed sizing: keep the video frame tidy in both phone orientations.
+   Controls rendered inside a third-party iframe (such as Google Drive) remain provider-owned. */
+@media (max-width: 700px) {
+  .player-stage { min-height: 0; }
+  .embed-frame { width: 100%; max-height: 72svh; }
+  .embed-frame.landscape { aspect-ratio: 16 / 9; min-height: 0; }
+  .embed-frame.portrait { aspect-ratio: 9 / 16; min-height: 0; max-height: 78svh; }
+  .embed-frame iframe { width: 100%; height: 100%; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .watch-shell { width: min(100% - 20px, 1100px); padding-top: 10px; }
+  .watch-kicker { margin-bottom: 8px; }
+  .player-card { border-radius: 14px; }
+  .embed-frame,
+  .embed-frame.landscape { width: 100%; aspect-ratio: 16 / 9; max-height: 76svh; min-height: 0; }
+  .embed-frame.portrait { aspect-ratio: 9 / 16; max-height: 82svh; }
+  .ratio-tools { padding: 6px 9px; gap: 6px; }
+  .ratio-tools button { padding: 6px 9px; }
+  .video-info { padding: 14px; }
+}
