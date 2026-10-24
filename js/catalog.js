@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
  const grid=document.getElementById('videoGrid'); if(!grid)return;
  const msg=document.getElementById('catalogMessage');
  const params=new URLSearchParams(location.search),rawTerm=(params.get('q')||'').trim(),term=rawTerm.toLowerCase(),page=document.body.dataset.page||'',category=(params.get('category')||'').trim();
- let isVip=false,isPremium=false;
+ let isVip=false,isPremium=false,isLoggedIn=false;
  const tags=['Trending','Komedi','Musik','Gaming','Olahraga','Hiburan','Edukasi','Teknologi','Lifestyle','18+'];
  const escapeHTML=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function card(v,i){
@@ -16,7 +16,7 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
  }
  try{
    if(!window.supabase?.createClient)throw new Error('Library katalog belum dimuat.');
-   const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);try{const {data:{user}}=await db.auth.getUser();if(user){const p=await db.from('profiles').select('plan,plan_expires_at').eq('id',user.id).maybeSingle();const plan=String(p.data?.plan||'basic').toLowerCase();const active=!p.data?.plan_expires_at||new Date(p.data.plan_expires_at)>new Date();isVip=active&&['vip','premium','pro'].includes(plan);isPremium=['premium','pro'].includes(plan)}}catch(_){}
+   const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);try{const {data:{user}}=await db.auth.getUser();if(user){isLoggedIn=true;const p=await db.from('profiles').select('plan,plan_expires_at').eq('id',user.id).maybeSingle();const plan=String(p.data?.plan||'basic').toLowerCase();const active=!p.data?.plan_expires_at||new Date(p.data.plan_expires_at)>new Date();isVip=active&&['vip','premium','pro'].includes(plan);isPremium=['premium','pro'].includes(plan)}}catch(_){}
    let videos=[];
    if(page==='top-10-videos'){
      const top=await db.rpc('jsvidey_top_videos',{p_limit:10});
@@ -37,8 +37,8 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    }
    // Apply membership visibility before rendering or building category chips.
    // Public/free content is visible to everyone; VIP can view VIP content; Premium can view both VIP and Premium content.
-   const tier=v=>{const a=String(v.audience||v.access_level||v.membership||'').toLowerCase();if(a==='premium'||a==='pro'||/^premium\b/.test(a))return 'premium';if(a==='vip'||/^vip\b/.test(a)||/^server\s*vip/i.test(String(v.category||'')))return 'vip';if(/^server\s*premium/i.test(String(v.category||'')))return 'premium';return 'public'};
-   videos=videos.filter(v=>{const t=tier(v);return t==='public'||(t==='vip'&&isVip)||(t==='premium'&&isPremium)});
+   const tier=v=>{const a=String(v.audience||v.access_level||v.membership||'').toLowerCase();if(a==='premium'||a==='pro'||/^premium\b/.test(a))return 'premium';if(a==='vip'||/^vip\b/.test(a)||/^server\s*vip/i.test(String(v.category||'')))return 'vip';if(/^server\s*premium/i.test(String(v.category||'')))return 'premium';if(a==='members'||a==='basic')return 'basic';return 'public'};
+   videos=videos.filter(v=>{const t=tier(v);return t==='public'||(t==='basic'&&isLoggedIn)||(t==='vip'&&isVip)||(t==='premium'&&isPremium)});
    if(term)videos=videos.filter(v=>(v.title||'').toLowerCase().includes(term)||(v.category||'').toLowerCase().includes(term));
    if(category && (params.get('type')==='server'||/^server/i.test(category)) && !isVip){
      grid.innerHTML='<div class="empty-card"><i class="fa-solid fa-lock"></i><h3>Halaman terkunci</h3><p>Upgrade Akun Terlebih Dahulu</p><strong>JSSHOW MEMBERSHIP</strong><p>Buka akses VIP<br> Nikmati akses ke server VIP dan koleksi khusus.</p><a class="btn btn-light" href="vip.html">Lanjut Upgrade VIP</a></div>';
