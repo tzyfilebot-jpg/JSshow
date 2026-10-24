@@ -35,3 +35,15 @@ body{background:var(--bg);color:var(--text)}
 @media(max-width:760px){.catalog-hero{grid-template-columns:1fr;gap:24px;padding-top:35px}.hero-art{min-height:270px}.catalog-wrap{width:calc(100% - 28px)}.category-strip{overflow-x:auto;max-width:100%;padding-bottom:8px;scrollbar-width:thin}.category-chip{flex:0 0 auto;white-space:nowrap}}
 /* Keep guest-only calls-to-action hidden for signed-in users even when display rules exist. */
 .join-banner[hidden],.category-strip[hidden]{display:none!important}
+
+/* Social metrics shown on each video card */
+.video-social-counts{display:flex;align-items:center;gap:14px;margin-top:10px;padding-top:9px;border-top:1px solid rgba(148,163,184,.16);color:var(--muted,#9ca3af);font-size:.78rem}
+.video-social-counts span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.video-social-counts i{opacity:.85}
+.video-duration{letter-spacing:.04em}
+.premium-card-tag{background:linear-gradient(110deg,#7c3aed,#2563eb)!important}
+
+.vip-card-tag{position:absolute;left:12px;bottom:12px;z-index:2;display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:rgba(124,58,237,.92);color:#fff;font-size:.68rem;font-weight:800;box-shadow:0 5px 18px rgba(0,0,0,.22)}
+.vip-card-tag.premium-card-tag{background:linear-gradient(110deg,#7c3aed,#2563eb)}
+
+.fav-tier{display:inline-flex;margin-top:6px;padding:4px 8px;border-radius:999px;background:rgba(124,58,237,.14);color:#c4b5fd;font-size:.7rem;font-weight:800}
