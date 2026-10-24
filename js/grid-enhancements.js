@@ -52,6 +52,6 @@
   if(total>1) grid.appendChild(pager);
  }
  render();},180)}
- async function start(){const cfg=await config();const grids=[...document.querySelectorAll('#videoGrid,#dashboardVideoGrid,#favoriteGrid,#myDownloadsGrid,.video-grid')];grids.forEach(g=>initGrid(g,cfg));const mo=new MutationObserver(()=>{for(const g of document.querySelectorAll('#videoGrid,#dashboardVideoGrid,#favoriteGrid,#myDownloadsGrid,.video-grid'))if(g.dataset.jsvEnhanced!=='1')initGrid(g,cfg)});mo.observe(document.body,{childList:true,subtree:true});}
+ async function start(){const cfg=await config();const grids=[...document.querySelectorAll('#videoGrid,#dashboardVideoGrid,#favoriteGrid,#favoritesGrid,#myDownloadsGrid,#downloadsGrid,.video-grid')];grids.forEach(g=>initGrid(g,cfg));const mo=new MutationObserver(()=>{for(const g of document.querySelectorAll('#videoGrid,#dashboardVideoGrid,#favoriteGrid,#favoritesGrid,#myDownloadsGrid,#downloadsGrid,.video-grid'))if(g.dataset.jsvEnhanced!=='1')initGrid(g,cfg)});mo.observe(document.body,{childList:true,subtree:true});}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
