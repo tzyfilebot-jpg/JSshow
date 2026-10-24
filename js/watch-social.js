@@ -243,7 +243,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       const user = authData?.user;
       if (!user) {
         notice('Silakan login terlebih dahulu untuk menggunakan Like.');
-        location.href = 'login.html?next=' + encodeURIComponent('watch.html?id=' + videoId);
+        location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : '/watch.html?id=' + videoId);
         return;
       }
       const nextLiked = !liked;
@@ -277,7 +277,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       const user = data?.user;
       if (!user) {
         notice('Silakan login terlebih dahulu untuk menyimpan Favorit.');
-        location.href = 'login.html?next=' + encodeURIComponent('watch.html?id=' + videoId);
+        location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : '/watch.html?id=' + videoId);
         return;
       }
       if (favorited) {
@@ -316,7 +316,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       if (authError) throw authError;
       const user = data?.user;
       if (!user) {
-        location.href = 'login.html?next=' + encodeURIComponent('watch.html?id=' + videoId);
+        location.href = '/login.html?next=' + encodeURIComponent(videoSlug ? '/v/' + videoSlug : '/watch.html?id=' + videoId);
         return;
       }
       const { error } = await db.from('video_comments').insert({
@@ -330,16 +330,98 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       notice('Komentar berhasil disimpan.');
       await loadComments();
     } catch (error) {
-      notice('Komentar gagal dikirim. Pastikan login aktif dan SQL database sosial sudah diterapkan.');
+      notice('Komentar gagal: ' + (error?.message || 'Periksa login, tabel video_comments, dan izin Supabase.'));
       console.error('Comment submit failed:', error);
     } finally {
       if (submitButton) submitButton.disabled = false;
     }
   });
 
+
+  function safeText(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+  }
+
+  async function loadRelatedVideos() {
+    const grid = $('relatedVideoGrid');
+    if (!grid) return;
+    try {
+      // Catalog query only reads the public fields granted by the catalog migration.
+      const { data, error } = await db.from('videos')
+        .select('id,title,slug,thumbnail_url,created_at,audience,status')
+        .eq('status', 'published')
+        .eq('audience', 'public')
+        .order('created_at', { ascending: false })
+        .limit(12);
+      if (error) throw error;
+      const rows = (data || []).filter(row => row.id !== videoId);
+      if (!rows.length) {
+        grid.innerHTML = '<p class="related-loading">Belum ada video lainnya.</p>';
+        return;
+      }
+
+      const ids = rows.map(row => row.id);
+      let counts = new Map();
+      const { data: countRows, error: countError } = await db.rpc('jsvidey_get_video_social_counts', {
+        p_video_ids: ids
+      });
+      if (!countError && Array.isArray(countRows)) {
+        counts = new Map(countRows.map(row => [row.video_id, row]));
+      } else {
+        console.warn('Related video counts RPC unavailable. Apply sql/jsvidey_watch_related_counts.sql', countError);
+      }
+
+      grid.replaceChildren();
+      for (const row of rows) {
+        const stats = counts.get(row.id) || {};
+        const href = row.slug
+          ? '/v/' + encodeURIComponent(row.slug)
+          : '/watch.html?id=' + encodeURIComponent(row.id);
+        const card = document.createElement('a');
+        card.className = 'related-card';
+        card.href = href;
+        const thumb = document.createElement('div');
+        thumb.className = 'related-thumb';
+        if (row.thumbnail_url) {
+          const img = document.createElement('img');
+          img.src = row.thumbnail_url;
+          img.alt = '';
+          img.loading = 'lazy';
+          img.referrerPolicy = 'no-referrer';
+          thumb.append(img);
+        } else {
+          thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>';
+        }
+        const copy = document.createElement('div');
+        copy.className = 'related-copy';
+        const title = document.createElement('div');
+        title.className = 'related-title';
+        title.textContent = row.title || 'Video tanpa judul';
+        const statLine = document.createElement('div');
+        statLine.className = 'related-stats';
+        const like = document.createElement('span');
+        like.innerHTML = '<i class="fa-solid fa-heart" aria-hidden="true"></i> ' + Number(stats.like_count || 0) + ' Like';
+        const comments = document.createElement('span');
+        comments.innerHTML = '<i class="fa-solid fa-comment" aria-hidden="true"></i> ' + Number(stats.comment_count || 0) + ' Komentar';
+        const favorites = document.createElement('span');
+        favorites.innerHTML = '<i class="fa-solid fa-bookmark" aria-hidden="true"></i> ' + Number(stats.favorite_count || 0) + ' Favorit';
+        statLine.append(like, comments, favorites);
+        copy.append(title, statLine);
+        card.append(thumb, copy);
+        grid.append(card);
+      }
+    } catch (error) {
+      console.error('Related videos failed to load:', error);
+      grid.innerHTML = '<p class="related-loading">Video lainnya belum dapat dimuat. Periksa izin katalog video di Supabase.</p>';
+    }
+  }
+
   (async () => {
     try {
       await resolveVideo();
+      loadRelatedVideos();
       if (likeButton) likeButton.disabled = false;
       if (favoriteButton) favoriteButton.disabled = false;
       if (commentSubmitButton) commentSubmitButton.disabled = false;
@@ -351,6 +433,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       }
     } catch (error) {
       videoLoadError = error;
+      loadRelatedVideos();
       console.error('Social video lookup failed:', error);
       notice(error.message || 'Interaksi video gagal dimuat.');
       if (window.__jsvideyVideoId) {
