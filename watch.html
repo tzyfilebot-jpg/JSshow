@@ -64,11 +64,34 @@
     <div id="relatedVideoGrid" class="related-video-grid"><p class="related-loading">Memuat video lainnya…</p></div>
   </section>
 </main>
+
+<!-- Watch-only Bug Reader: diagnostik lokal untuk halaman Watch -->
+<aside id="watchBugReader" class="watch-bug-reader" aria-label="Watch Bug Reader">
+  <button id="watchBugToggle" class="watch-bug-toggle" type="button" aria-expanded="false">
+    <i class="fa-solid fa-bug"></i><span>Bug Reader</span><span id="watchBugBadge" class="watch-bug-badge">0</span>
+  </button>
+  <section id="watchBugPanel" class="watch-bug-panel" hidden>
+    <header class="watch-bug-head">
+      <div><strong><i class="fa-solid fa-stethoscope"></i> Watch Diagnostics</strong><small>Hanya mencatat halaman Watch ini</small></div>
+      <button id="watchBugClose" type="button" aria-label="Tutup panel">×</button>
+    </header>
+    <div id="watchBugChecks" class="watch-bug-checks" aria-live="polite"></div>
+    <div class="watch-bug-log-head"><strong>Log kejadian</strong><span id="watchBugLogCount">0 catatan</span></div>
+    <ol id="watchBugLogs" class="watch-bug-logs"><li class="watch-bug-empty">Menyiapkan pembaca error…</li></ol>
+    <footer class="watch-bug-actions">
+      <button id="watchBugCopy" type="button"><i class="fa-regular fa-copy"></i> Salin laporan</button>
+      <button id="watchBugClear" type="button"><i class="fa-solid fa-trash-can"></i> Bersihkan</button>
+    </footer>
+    <p class="watch-bug-note">Laporan tidak menyertakan token atau header autentikasi. Periksa sebelum membagikan URL yang mungkin berisi ID video.</p>
+  </section>
+</aside>
+
 <div id="footerMount"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/navbar.js?v=20261025-watch-audit-fix-v10"></script>
 <script src="js/footer.js?v=20261025-watch-audit-fix-v10"></script>
+<script src="js/watch-bug-reader.js?v=20261025-watch-bug-reader-v1"></script>
 <script src="js/watch.js?v=20261025-watch-audit-fix-v10"></script>
 <script src="js/watch-social.js?v=20261025-watch-audit-fix-v10"></script>
 
