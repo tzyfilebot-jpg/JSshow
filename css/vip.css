@@ -3,3 +3,7 @@
 .vip-plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin:24px 0}
 .vip-plan{display:flex;flex-direction:column;gap:8px;text-align:left;padding:16px;border:1px solid rgba(148,163,184,.25);border-radius:16px;background:rgba(255,255,255,.04);color:inherit;cursor:pointer}
 .vip-plan strong{font-size:14px}.vip-plan b{font-size:18px}.vip-plan.selected{border-color:#8b5cf6;background:rgba(139,92,246,.15);box-shadow:0 0 0 1px #8b5cf6}.premium-plan{background:rgba(245,158,11,.08)}
+
+
+/* Responsive membership-page polish */
+.vip-page{width:min(1120px,calc(100% - 28px));margin:clamp(24px,5vw,56px) auto 64px}.vip-page h1{letter-spacing:-.035em;line-height:1.12}.vip-page .vip-card,.vip-page .plan-card,.vip-page .membership-card{border-radius:20px;box-shadow:0 12px 36px #00012;overflow:hidden}.vip-page button,.vip-page .btn,.vip-page a.button{min-height:44px;border-radius:12px}.vip-page p{line-height:1.7}.vip-page img{max-width:100%;height:auto}
