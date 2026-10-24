@@ -8,6 +8,27 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
  if(!videoSlug && !videoId){const parts=location.pathname.split('/').filter(Boolean);if(parts.length===1 && !parts[0].includes('.')){try{videoSlug=decodeURIComponent(parts[0]);}catch(_){videoSlug=parts[0];}}}
  const state=$('state'),player=$('player'),frame=$('embedFrame'),iframe=$('embedPlayer');
  const ratioTools=$('ratioTools');
+ const entryNotice=$('watchEntryNotice'),entryThumb=$('watchEntryThumbnail'),entryTitle=$('watchEntryTitle'),entryPlay=$('watchEntryPlay'),entryJoin=$('watchEntryJoin'),entryLoading=$('watchEntryLoading'),entryClose=$('watchNoticeClose');
+ let pendingVideo=null,playStarting=false;
+ function openEntryNotice(record){
+   pendingVideo=record; playStarting=false;
+   if(entryTitle)entryTitle.textContent=record.title||'Video Jsvidey';
+   if(entryThumb){const thumb=record.thumbnail_url||record.thumbnail||record.thumbnailUrl||''; if(thumb){entryThumb.src=thumb;entryThumb.hidden=false;entryThumb.onerror=()=>{entryThumb.hidden=true;};}else{entryThumb.removeAttribute('src');entryThumb.hidden=true;}}
+   if(entryLoading)entryLoading.hidden=true;
+   if(entryPlay){entryPlay.disabled=false;entryPlay.innerHTML='<i class="fa-solid fa-play"></i> Play';}
+   if(entryNotice)entryNotice.hidden=false;
+ }
+ function closeEntryNotice(){if(entryNotice)entryNotice.hidden=true;}
+ if(entryJoin)entryJoin.href='https://t.me/+DqdGHeiPZA9mYTQx';
+ if(entryClose)entryClose.addEventListener('click',()=>{ /* Keep video gate visible; close is intentionally disabled until Play. */ if(entryNotice)entryNotice.classList.add('watch-entry-attention'); });
+ if(entryPlay)entryPlay.addEventListener('click',async()=>{
+   if(playStarting||!pendingVideo)return; playStarting=true; entryPlay.disabled=true;
+   if(entryLoading)entryLoading.hidden=false; entryPlay.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Memuat…';
+   await new Promise(resolve=>setTimeout(resolve,3000));
+   closeEntryNotice(); showEmbed(pendingVideo.video_url,pendingVideo.title);
+   if(player && !player.hidden){try{await player.play();}catch(_){/* Browser may require a second tap for playback. */}}
+   playStarting=false;
+ });
  const ratioButtons=ratioTools?Array.from(ratioTools.querySelectorAll('[data-ratio]')):[];
  function setRatio(mode){if(frame){frame.classList.toggle('landscape',mode==='landscape');frame.classList.toggle('portrait',mode==='portrait');}ratioButtons.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.ratio===mode)));}
  ratioButtons.forEach(b=>b.addEventListener('click',()=>setRatio(b.dataset.ratio)));
@@ -83,7 +104,8 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    window.__jsvideyVideoSlug=record.slug||videoSlug||null;
    window.dispatchEvent(new CustomEvent('jsvidey:video-ready',{detail:{id:record.id,slug:record.slug||videoSlug||null}}));
    window.__jsvideyShareUrl=window.__jsvideyVideoSlug ? location.origin+'/v/'+encodeURIComponent(window.__jsvideyVideoSlug) : location.origin+'/watch.html?id='+encodeURIComponent(record.id);
-   showEmbed(record.video_url,record.title);
+   // Show the title/thumbnail gate first. The player is mounted only after Play + 3s loading.
+   openEntryNotice(record);
    // Count a view through a database function; never allow the browser to write raw view rows.
    db.rpc('jsvidey_record_video_view',{p_video_id:record.id}).then(({error})=>{if(error)console.warn('View count not recorded:',error.message)});
  }catch(e){
