@@ -8,7 +8,7 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
  const stepOrder=['top','middle','bottom'];
  const stepElements={top:$('downloadStepTop'),middle:$('downloadStepMiddle'),bottom:$('downloadStepBottom')};
  const stepStatuses={top:$('downloadTopStatus'),middle:$('downloadMiddleStatus'),bottom:$('downloadBottomStatus')};
- const adUrl='https://www.profitableratercpmnetwork.com/pkmkxfrmiy?key=5b5750804fb6a29007e75d321e567d75';
+ let adConfig={};
  let db=null,video=null,currentUser=null,downloadUrl='',busy=false;
  const alignDefaults={top_align:'right',middle_align:'center',bottom_align:'left'};
  function setStatus(text){if(status)status.textContent=text}
@@ -69,6 +69,8 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
        eligibility.textContent='Tekan Download Video untuk memulai 3 tahap iklan. Setiap tahap menunggu 7 detik.';
        startButton.disabled=false;
      }
+     // Read the same official Adsterra configuration used by the rest of the site.
+     try{const adResult=await db.rpc('jsvidey_public_platform_status');adConfig=(!adResult.error&&adResult.data)||{}}catch(_){adConfig={}}
      const settingsResult=await db.rpc('jsvidey_get_download_settings');
      const cfg=!settingsResult.error&&settingsResult.data?settingsResult.data:alignDefaults;
      const map={top:cfg.top_align||alignDefaults.top_align,middle:cfg.middle_align||alignDefaults.middle_align,bottom:cfg.bottom_align||alignDefaults.bottom_align};
@@ -91,14 +93,31 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
      const key=button.dataset.downloadStep,index=stepOrder.indexOf(key);
      if(index<0||busy||button.disabled)return;
      busy=true;button.disabled=true;button.textContent='Memuat 7 detik…';
-     const popup=window.open(adUrl,'_blank');
-     if(!popup){
-       button.disabled=false;button.textContent='Coba buka iklan lagi';
-       stepStatuses[key].textContent='Popup iklan diblokir browser. Izinkan popup untuk situs ini, lalu coba lagi.';
-       busy=false;return;
+     // Never send visitors to a hard-coded third-party ad URL. The official
+     // Adsterra Popunder/Social Bar tags are initialized by monetization.js.
+     // If a banner tag exists, render that official tag in the current step.
+     const adCode=String(adConfig.ad_top_code||adConfig.ad_bottom_code||'').trim();
+     const step=stepElements[key];
+     let slot=step.querySelector('.download-ad-slot');
+     if(!slot){slot=document.createElement('div');slot.className='download-ad-slot';slot.style.cssText='margin:12px auto;max-width:100%;overflow:hidden;text-align:center';step.insertBefore(slot,stepStatuses[key]);}
+     slot.replaceChildren();
+     if(adCode){
+       const doc=new DOMParser().parseFromString(adCode,'text/html');
+       for(const node of [...doc.body.childNodes]){
+         if(node.nodeType===Node.TEXT_NODE&&!node.textContent.trim())continue;
+         if(node.nodeName==='SCRIPT'){
+           const script=document.createElement('script');
+           for(const attr of [...node.attributes])script.setAttribute(attr.name,attr.value);
+           script.text=node.textContent||'';slot.appendChild(script);
+         }else if(['DIV','A','IMG','INS','SPAN','P','STYLE','IFRAME'].includes(node.nodeName)){
+           const copy=document.importNode(node,true);
+           if(copy.nodeName==='IFRAME'&&!/^https:\/\//i.test(copy.getAttribute('src')||''))continue;
+           slot.appendChild(copy);
+         }
+       }
      }
-     try{popup.opener=null}catch(_){}
-     let remaining=7;stepStatuses[key].textContent='Iklan dibuka. Tunggu '+remaining+' detik…';
+     let remaining=7;
+     stepStatuses[key].textContent=adCode?'Slot iklan resmi dimuat. Tunggu '+remaining+' detik…':'Kode banner Adsterra belum diisi di Panel Admin. Tahap tetap berjalan; tambahkan kode agar iklan tampil.';
      const timer=setInterval(()=>{
        remaining--;
        if(remaining<=0){
@@ -106,7 +125,7 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
          stepElements[key].hidden=true;
          if(index<stepOrder.length-1){
            const next=stepOrder[index+1];stepElements[next].hidden=false;
-           stepStatuses[next].textContent='Tahap berikutnya siap. Klik Download untuk membuka iklan dan tunggu 7 detik.';
+           stepStatuses[next].textContent='Tahap berikutnya siap. Klik Download untuk memuat slot iklan dan tunggu 7 detik.';
          }else{
            steps.hidden=true;ready.hidden=false;
            eligibility.textContent='Semua tahap selesai. Tombol akhir membuka link download dari panel admin.';
