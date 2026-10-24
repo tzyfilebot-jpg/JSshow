@@ -378,16 +378,17 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   async function loadRelatedVideos() {
     const grid = $('relatedVideoGrid');
     if (!grid) return;
+    // Never leave the initial spinner on screen indefinitely.
+    const timeout = (promise, ms = 12000) => Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Permintaan katalog terlalu lama. Muat ulang halaman atau periksa koneksi Supabase.')), ms))
+    ]);
     try {
-      // Catalog query only reads the public fields granted by the catalog migration.
-      const { data, error } = await db.from('videos')
-        .select('id,title,slug,thumbnail_url,created_at,audience,status')
-        .eq('status', 'published')
-        .eq('audience', 'public')
-        .order('created_at', { ascending: false })
-        .limit(12);
+      // Use the same public-safe catalog RPC as Home, Categories and Dashboard.
+      // This keeps VIP/Premium videos visible as locked cards instead of hiding them.
+      const { data, error } = await timeout(db.rpc('jsvidey_catalog_videos'));
       if (error) throw error;
-      const rows = (data || []).filter(row => row.id !== videoId);
+      const rows = (data || []).filter(row => row.id !== videoId).slice(0, 12);
       if (!rows.length) {
         grid.innerHTML = '<p class="related-loading">Belum ada video lainnya.</p>';
         return;
@@ -395,9 +396,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
       const ids = rows.map(row => row.id);
       let counts = new Map();
-      const { data: countRows, error: countError } = await db.rpc('jsvidey_get_video_social_counts', {
+      const { data: countRows, error: countError } = await timeout(db.rpc('jsvidey_get_video_social_counts', {
         p_video_ids: ids
-      });
+      }), 12000);
       if (!countError && Array.isArray(countRows)) {
         counts = new Map(countRows.map(row => [row.video_id, row]));
       } else {
@@ -445,7 +446,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       }
     } catch (error) {
       console.error('Related videos failed to load:', error);
-      grid.innerHTML = '<p class="related-loading">Video lainnya belum dapat dimuat. Periksa izin katalog video di Supabase.</p>';
+      const detail = error?.message || 'Periksa migrasi SQL katalog dan izin akses Supabase.';
+      grid.innerHTML = '<p class="related-loading related-error">Video lainnya gagal dimuat. ' + safeText(detail) + '</p>';
     }
   }
 
