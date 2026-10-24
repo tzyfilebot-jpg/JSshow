@@ -1,6 +1,6 @@
-const SUPABASE_URL='https://ordvxiydkxbtahjpseph.supabase.co';
-const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yZHZ4aXlka3hidGFoanBzZXBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MDM3MjMsImV4cCI6MjEwODE3OTcyM30.PCruI7EeLyagV_PMyCd57s3N9oYcL41k-fEgwE8G60E';
-const withTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu lama.')=>Promise.race([Promise.resolve(promise),new Promise((_,reject)=>setTimeout(()=>reject(new Error(message)),ms))]);
+const WATCH_SUPABASE_URL='https://ordvxiydkxbtahjpseph.supabase.co';
+const WATCH_SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yZHZ4aXlka3hidGFoanBzZXBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MDM3MjMsImV4cCI6MjEwODE3OTcyM30.PCruI7EeLyagV_PMyCd57s3N9oYcL41k-fEgwE8G60E';
+const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu lama.')=>Promise.race([Promise.resolve(promise),new Promise((_,reject)=>setTimeout(()=>reject(new Error(message)),ms))]);
 (async()=>{
  const $=id=>document.getElementById(id);
  let videoId=new URLSearchParams(location.search).get('id');
@@ -81,19 +81,19 @@ const withTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu lama
    // Use the authenticated Supabase client for both UUID and slug lookups. This preserves
    // the signed-in JWT for member-only videos without granting broad SELECT access to videos.
    if (!window.jsvideySupabaseClient && !window.supabase?.createClient) throw new Error('Library Supabase gagal dimuat.');
-   const db = window.jsvideySupabaseClient || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+   const db = window.jsvideySupabaseClient || (window.jsvideySupabaseClient = window.supabase.createClient(WATCH_SUPABASE_URL, WATCH_SUPABASE_ANON_KEY, {
      auth: { persistSession: true, autoRefreshToken: true, storageKey: 'sb-ordvxiydkxbtahjpseph-auth-token' }
-   });
+   }));
    const rpcName = videoSlug ? 'get_public_embed_video_by_slug' : 'get_public_embed_video';
    const rpcArgs = videoSlug ? { p_slug: videoSlug } : { p_video_id: videoId };
-   const { data, error } = await withTimeout(
+   const { data, error } = await watchWithTimeout(
      db.rpc(rpcName, rpcArgs), 12000,
      'Lookup video melewati batas 12 detik. Periksa fungsi ' + rpcName + ' di Supabase.'
    );
    if (error) throw new Error(error.message || 'Lookup video gagal. Pastikan SQL lookup video sudah diterapkan.');
    const record = Array.isArray(data) ? data[0] : data;
    if(!record?.video_url||record.status!=='published'){
-     const access=await withTimeout(db.rpc('jsvidey_video_access_status',{p_video_id:videoId||null,p_slug:videoSlug||null}),8000,'Pemeriksaan akses video terlalu lama.');
+     const access=await watchWithTimeout(db.rpc('jsvidey_video_access_status',{p_video_id:videoId||null,p_slug:videoSlug||null}),8000,'Pemeriksaan akses video terlalu lama.');
      const info=Array.isArray(access.data)?access.data[0]:access.data;
      if(info&&!info.allowed){
        const premium=String(info.audience||'').toLowerCase()==='premium';
@@ -111,7 +111,7 @@ const withTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu lama
    // Show the title/thumbnail gate first. The player is mounted only after Play + 3s loading.
    openEntryNotice(record);
    // Count a view through a database function; never allow the browser to write raw view rows.
-   withTimeout(db.rpc('jsvidey_record_video_view',{p_video_id:record.id}),8000,'Pencatatan view terlalu lama.')
+   watchWithTimeout(db.rpc('jsvidey_record_video_view',{p_video_id:record.id}),8000,'Pencatatan view terlalu lama.')
      .then(({error})=>{if(error)console.warn('View count not recorded:',error.message)})
      .catch(error=>console.warn('View count not recorded:',error.message));
  }catch(e){
