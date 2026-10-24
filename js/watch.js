@@ -1,5 +1,6 @@
 const SUPABASE_URL='https://ordvxiydkxbtahjpseph.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yZHZ4aXlka3hidGFoanBzZXBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MDM3MjMsImV4cCI6MjEwODE3OTcyM30.PCruI7EeLyagV_PMyCd57s3N9oYcL41k-fEgwE8G60E';
+const withTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu lama.')=>Promise.race([Promise.resolve(promise),new Promise((_,reject)=>setTimeout(()=>reject(new Error(message)),ms))]);
 (async()=>{
  const $=id=>document.getElementById(id);
  let videoId=new URLSearchParams(location.search).get('id');
@@ -85,11 +86,14 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    });
    const rpcName = videoSlug ? 'get_public_embed_video_by_slug' : 'get_public_embed_video';
    const rpcArgs = videoSlug ? { p_slug: videoSlug } : { p_video_id: videoId };
-   const { data, error } = await db.rpc(rpcName, rpcArgs);
+   const { data, error } = await withTimeout(
+     db.rpc(rpcName, rpcArgs), 12000,
+     'Lookup video melewati batas 12 detik. Periksa fungsi ' + rpcName + ' di Supabase.'
+   );
    if (error) throw new Error(error.message || 'Lookup video gagal. Pastikan SQL lookup video sudah diterapkan.');
    const record = Array.isArray(data) ? data[0] : data;
    if(!record?.video_url||record.status!=='published'){
-     const access=await db.rpc('jsvidey_video_access_status',{p_video_id:videoId||null,p_slug:videoSlug||null});
+     const access=await withTimeout(db.rpc('jsvidey_video_access_status',{p_video_id:videoId||null,p_slug:videoSlug||null}),8000,'Pemeriksaan akses video terlalu lama.');
      const info=Array.isArray(access.data)?access.data[0]:access.data;
      if(info&&!info.allowed){
        const premium=String(info.audience||'').toLowerCase()==='premium';
@@ -107,7 +111,9 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    // Show the title/thumbnail gate first. The player is mounted only after Play + 3s loading.
    openEntryNotice(record);
    // Count a view through a database function; never allow the browser to write raw view rows.
-   db.rpc('jsvidey_record_video_view',{p_video_id:record.id}).then(({error})=>{if(error)console.warn('View count not recorded:',error.message)});
+   withTimeout(db.rpc('jsvidey_record_video_view',{p_video_id:record.id}),8000,'Pencatatan view terlalu lama.')
+     .then(({error})=>{if(error)console.warn('View count not recorded:',error.message)})
+     .catch(error=>console.warn('View count not recorded:',error.message));
  }catch(e){
    console.error('Embed lookup failed:',e);
    const detail=e?.name==='AbortError'?'Permintaan ke Supabase melewati batas waktu 12 detik.':(e?.message||String(e));
