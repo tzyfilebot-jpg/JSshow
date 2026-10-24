@@ -6,7 +6,9 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
  const params=new URLSearchParams(location.search);
  let videoSlug=params.get('slug');
  if(!videoSlug && !videoId){const parts=location.pathname.split('/').filter(Boolean);if(parts.length===1 && !parts[0].includes('.')){try{videoSlug=decodeURIComponent(parts[0]);}catch(_){videoSlug=parts[0];}}}
- const state=$('state'),player=$('player'),frame=$('embedFrame'),iframe=$('embedPlayer');\n const preview=$('watchPreview'),thumb=$('watchThumbnail'),playBtn=$('watchPlayButton'),loading=$('watchLoading');\n let pendingMedia=null, playBusy=false;
+ const state=$('state'),player=$('player'),frame=$('embedFrame'),iframe=$('embedPlayer');
+ const preview=$('watchPreview'),thumb=$('watchThumbnail'),playBtn=$('watchPlayButton'),loading=$('watchLoading');
+ let pendingMedia=null, playBusy=false;
  const ratioTools=$('ratioTools');
  const ratioButtons=ratioTools?Array.from(ratioTools.querySelectorAll('[data-ratio]')):[];
  function setRatio(mode){if(frame){frame.classList.toggle('landscape',mode==='landscape');frame.classList.toggle('portrait',mode==='portrait');}ratioButtons.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.ratio===mode)));}
