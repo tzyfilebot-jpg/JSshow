@@ -1,38 +1,36 @@
-// Cloudflare Pages catch-all: reserve application routes before handling short links.
-// This prevents /watch from being mistaken for a video slug (slug=watch).
+// Cloudflare Pages catch-all: keep application routes out of short-link slug handling.
 export async function onRequest(context) {
   const { request } = context;
   const next = () => context.next();
   try {
     if (request.method !== "GET" && request.method !== "HEAD") return await next();
-
     const url = new URL(request.url);
-    let path;
-    try {
-      path = decodeURIComponent(url.pathname.replace(/^\/+|\/+$/g, "")).toLowerCase();
-    } catch (_) {
-      return new Response("Invalid URL path", { status: 400 });
-    }
+    let rawPath;
+    try { rawPath = decodeURIComponent(url.pathname.replace(/^\/+|\/+$/g, "")); }
+    catch (_) { return new Response("Invalid URL path", { status: 400 }); }
+    if (!rawPath || rawPath.includes("/") || rawPath.includes(".") || rawPath.length > 80) return await next();
+    const path = rawPath.toLowerCase();
 
-    // Root, nested paths, and file/assets must be served normally.
-    if (!path || path.includes("/") || path.includes(".") || path.length > 80) {
-      return await next();
-    }
-
-    // Never redirect reserved application paths. In particular, /watch must not
-    // become /watch.html?slug=watch, and /login must not enter a redirect chain.
-    const reservedRoutes = new Set([
-      "watch", "login", "register", "dashboard", "upload",
-      "settings", "search", "categories", "admin", "my-downloads"
-    ]);
+    // These legacy pages are intentionally retired.
     if (path === "withdraw" || path === "my-file") {
       return Response.redirect(new URL("/dashboard.html", url.origin).toString(), 302);
     }
-    if (reservedRoutes.has(path)) return await next();
-
-    // Only non-reserved, one-segment extensionless paths are short video IDs.
+    const aliases = {
+      "index": "/index.html", "watch": "/watch.html", "download": "/download.html",
+      "login": "/login.html", "register": "/register.html", "dashboard": "/dashboard.html",
+      "upload": "/upload.html", "settings": "/settings.html", "search": "/search.html",
+      "categories": "/categories.html", "admin": "/admin.html", "my-favorites": "/my-favorites.html",
+      "my-downloads": "/my-downloads.html", "leaderboard": "/leaderboard.html",
+      "top-10-videos": "/top-10-videos.html", "vip": "/vip.html", "payment": "/payment.html"
+    };
+    if (aliases[path]) {
+      const target = new URL(aliases[path], url.origin);
+      target.search = url.search;
+      return Response.redirect(target.toString(), 302);
+    }
+    // Unknown one-segment paths remain short video links.
     const target = new URL("/watch.html", url.origin);
-    target.searchParams.set("slug", path);
+    target.searchParams.set("slug", rawPath);
     return Response.redirect(target.toString(), 302);
   } catch (error) {
     console.error("Jsvidey short-link routing error:", error);
