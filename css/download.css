@@ -1,1 +1,31 @@
-.download-shell{max-width:760px;margin:0 auto;padding:32px 16px 56px}.download-card{border:1px solid #293653;border-radius:24px;background:linear-gradient(145deg,#131d31,#0b1220);padding:clamp(22px,5vw,40px);text-align:center;box-shadow:0 24px 70px #0005}.download-icon{width:76px;height:76px;margin:0 auto 18px;display:grid;place-items:center;border-radius:24px;background:#172e50;color:#69c4ff;font-size:30px}.download-card h1{margin:0 0 10px;font-size:clamp(26px,5vw,36px)}.download-card p{color:#aebbd3;line-height:1.7}.download-card h2{overflow-wrap:anywhere;font-size:20px;margin:22px 0}.download-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:24px 0}.download-actions button,.download-actions a{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:13px 18px;border:0;border-radius:13px;background:linear-gradient(110deg,#7c3aed,#2563eb);color:#fff;text-decoration:none;font-weight:750;font:inherit;cursor:pointer}.download-actions .secondary{background:#202b40;border:1px solid #34415c}.download-actions button:disabled{opacity:.5;cursor:not-allowed}.download-note{font-size:13px!important}.comments-panel{margin-top:20px}
+*{box-sizing:border-box}
+.download-shell{max-width:820px;margin:0 auto;padding:32px 16px 56px}
+.download-card{border:1px solid #293653;border-radius:24px;background:linear-gradient(145deg,#131d31,#0b1220);padding:clamp(22px,5vw,40px);text-align:center;box-shadow:0 24px 70px #0005;overflow:hidden}
+.download-icon{width:76px;height:76px;margin:0 auto 18px;display:grid;place-items:center;border-radius:24px;background:#172e50;color:#69c4ff;font-size:30px}
+.download-eyebrow{color:#75cfff!important;font-size:12px;letter-spacing:.14em;font-weight:800}
+.download-card h1{margin:0 0 10px;font-size:clamp(26px,5vw,36px)}
+.download-card p{color:#aebbd3;line-height:1.65}
+.download-card h2{overflow-wrap:anywhere;font-size:20px;margin:22px 0}
+.download-thumbnail{display:block;width:min(100%,560px);max-height:320px;object-fit:contain;background:#070b14;border:1px solid #293653;border-radius:16px;margin:20px auto}
+.download-actions{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;margin:24px 0}
+.download-actions button,.download-actions a,.step-download-button,.download-ready button{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:13px 18px;border:0;border-radius:13px;background:linear-gradient(110deg,#7c3aed,#2563eb);color:#fff;text-decoration:none;font-weight:750;font:inherit;cursor:pointer;min-height:48px}
+.download-actions .secondary{background:#202b40;border:1px solid #34415c}
+.download-actions button:disabled,.step-download-button:disabled,.download-ready button:disabled{opacity:.55;cursor:wait}
+.download-note{font-size:13px!important}
+.download-steps{display:grid;gap:18px;margin:22px 0;text-align:left}
+.download-step{border:1px solid #293653;border-radius:16px;padding:18px;background:#0b1424}
+.download-step[hidden],.download-ready[hidden],.download-steps[hidden],.download-thumbnail[hidden]{display:none!important}
+.step-caption{font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:800;margin:0 0 10px!important;color:#82ceff!important}
+.step-status{font-size:13px;margin:10px 0 0!important}
+.download-step[data-align="left"] .step-download-button{margin-right:auto}
+.download-step[data-align="center"] .step-download-button{margin-left:auto;margin-right:auto}
+.download-step[data-align="right"] .step-download-button{margin-left:auto}
+.download-step[data-align="left"]{text-align:left}
+.download-step[data-align="center"]{text-align:center}
+.download-step[data-align="right"]{text-align:right}
+.step-download-button{min-width:160px}
+.download-ready{border:1px solid #1f9d70;border-radius:18px;padding:22px;margin:24px 0;background:linear-gradient(145deg,#0d2d2a,#0c1b25);text-align:center}
+.download-ready>i{font-size:28px;color:#4adea7}
+.download-ready h3{margin:10px 0}
+.download-ready p{font-size:14px}
+@media(max-width:560px){.download-card{padding:22px 16px}.download-actions>*{width:100%}.step-download-button{width:100%}}
