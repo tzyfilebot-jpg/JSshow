@@ -6,7 +6,7 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
  const params=new URLSearchParams(location.search);
  let videoSlug=params.get('slug');
  if(!videoSlug && !videoId){const parts=location.pathname.split('/').filter(Boolean);if(parts.length===1 && !parts[0].includes('.')){try{videoSlug=decodeURIComponent(parts[0]);}catch(_){videoSlug=parts[0];}}}
- const state=$('state'),player=$('player'),frame=$('embedFrame'),iframe=$('embedPlayer');
+ const state=$('state'),player=$('player'),frame=$('embedFrame'),iframe=$('embedPlayer');\n const preview=$('watchPreview'),thumb=$('watchThumbnail'),playBtn=$('watchPlayButton'),loading=$('watchLoading');\n let pendingMedia=null, playBusy=false;
  const ratioTools=$('ratioTools');
  const ratioButtons=ratioTools?Array.from(ratioTools.querySelectorAll('[data-ratio]')):[];
  function setRatio(mode){if(frame){frame.classList.toggle('landscape',mode==='landscape');frame.classList.toggle('portrait',mode==='portrait');}ratioButtons.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.ratio===mode)));}
@@ -50,6 +50,23 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    if(status)status.textContent='Media: '+m.provider+'. Tombol Download tersedia di bagian bawah video jika penyedia mendukungnya.';
    const downloadPageButton=$('downloadPageButton');if(downloadPageButton)downloadPageButton.href='/download.html?id='+encodeURIComponent(videoId);
  }
+ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+ function loadRelatedVideos(db,currentId){
+   const grid=$('relatedVideoGrid');if(!grid)return;
+   db.rpc('jsvidey_catalog_videos').then(({data,error})=>{
+     if(error)throw error;
+     const list=(data||[]).filter(v=>v.id!==currentId).slice(0,12);
+     if(!list.length){grid.innerHTML='<p class="related-loading">Belum ada video lain.</p>';return;}
+     grid.innerHTML=list.map(v=>{
+       const tier=String(v.audience||v.access_level||'public').toLowerCase();
+       const label=tier==='premium'?'PREMIUM':tier==='vip'?'VIP':tier==='members'?'MEMBER':'GRATIS';
+       const url=v.slug?'/watch?slug='+encodeURIComponent(v.slug):'/watch.html?id='+encodeURIComponent(v.id);
+       const img=v.thumbnail_url?'<img loading="lazy" src="'+esc(v.thumbnail_url)+'" alt="">':'';
+       const likes=Number(v.like_count||v.likes_count||0),favs=Number(v.favorite_count||v.favorites_count||0),comments=Number(v.comment_count||v.comments_count||0);
+       return '<a class="related-card" href="'+url+'"><div class="related-thumb">'+img+'<span class="related-tier">'+label+'</span></div><div class="related-copy"><div class="related-title">'+esc(v.title||'Video')+'</div><div class="related-stats"><span>♥ '+likes+'</span><span>★ '+favs+'</span><span>▤ '+comments+'</span></div></div></a>';
+     }).join('');
+   }).catch(err=>{console.warn('Related videos unavailable',err);grid.innerHTML='<p class="related-loading">Video lainnya belum dapat dimuat.</p>';});
+ }
  if(!videoId&&!videoSlug){fail('Link video tidak ditemukan. Buka tautan video yang valid.');return;}
  if(videoId&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(videoId)){
    // URL pendek lama dapat masuk sebagai ?id=slug; perlakukan sebagai slug.
@@ -83,7 +100,13 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    window.__jsvideyVideoSlug=record.slug||videoSlug||null;
    window.dispatchEvent(new CustomEvent('jsvidey:video-ready',{detail:{id:record.id,slug:record.slug||videoSlug||null}}));
    window.__jsvideyShareUrl=window.__jsvideyVideoSlug ? location.origin+'/v/'+encodeURIComponent(window.__jsvideyVideoSlug) : location.origin+'/watch.html?id='+encodeURIComponent(record.id);
-   showEmbed(record.video_url,record.title);
+   pendingMedia={url:record.video_url,title:record.title||'Video Jsvidey',thumbnail:record.thumbnail_url||''};
+   const startPlayback=()=>{if(playBusy||!pendingMedia)return;playBusy=true;if(playBtn)playBtn.hidden=true;if(loading)loading.hidden=false;setTimeout(()=>{if(preview)preview.hidden=true;if(loading)loading.hidden=true;showEmbed(pendingMedia.url,pendingMedia.title);playBusy=false;},3000);};
+   if(preview && pendingMedia.thumbnail){thumb.src=pendingMedia.thumbnail;preview.hidden=false;if(state)state.hidden=true;}
+   else if(preview){preview.hidden=true;showEmbed(pendingMedia.url,pendingMedia.title);}
+   if(playBtn)playBtn.addEventListener('click',startPlayback);
+   // If a thumbnail exists, wait for the user's Play click; otherwise start directly.
+   loadRelatedVideos(db,record.id);
    // Count a view through a database function; never allow the browser to write raw view rows.
    db.rpc('jsvidey_record_video_view',{p_video_id:record.id}).then(({error})=>{if(error)console.warn('View count not recorded:',error.message)});
  }catch(e){
