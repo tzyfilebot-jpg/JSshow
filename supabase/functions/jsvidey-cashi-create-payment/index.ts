@@ -135,9 +135,12 @@ Deno.serve(async (req) => {
           amount: Number(order.amount_idr), qr_url: recovered.qr_url, checkout_url: recovered.checkout_url,
           recovery_required: !recovered.qr_url && !recovered.checkout_url, reused: true });
       }
-      return json({ error: "CASHI_ORDER_EXISTS_NO_CHECKOUT",
-        detail: "Cashi sudah mengenali transaksi ini, tetapi tidak mengembalikan QR atau tautan checkout. Jangan buat transaksi ulang; minta Cashi memulihkan checkout untuk Ref transaksi yang sama.",
-        provider_order_id: order.cashi_order_id }, 409);
+      // Keep the endpoint response successful so the frontend can show a clear
+      // recovery state instead of the opaque Supabase "non-2xx" message.
+      return json({ success: true, order_id: order.id, cashi_order_id: order.cashi_order_id,
+        amount: Number(order.amount_idr), qr_url: null, checkout_url: null,
+        recovery_required: true, reused: true,
+        message: "Cashi mengenali transaksi ini, tetapi API status belum mengembalikan QR/checkout. Jangan membayar transaksi lain; minta Cashi memulihkan checkout untuk Ref yang sama." });
     }
 
     const amount = Number(order.amount_idr);
@@ -145,7 +148,56 @@ Deno.serve(async (req) => {
       return json({ error: "INVALID_ORDER_AMOUNT" }, 400);
     }
 
-    const cashiOrderId = `JSV-${order.id}`;
+    // Generate a provider ID unique per payment order attempt. The previous
+    // deterministic ID (JSV-<database UUID>) caused permanent 409 conflicts
+    // after Cashi had already registered it.
+    const cashiOrderId = `JSV-${order.id}-${crypto.randomUUID()}`;
+
+    // Persist the id before calling Cashi. If the network drops after Cashi
+    // creates the order, a retry will recover this same provider order instead
+    // of submitting another create-order request.
+    const { error: reserveError } = await service.from("jsvidey_payment_orders").update({
+      cashi_order_id: cashiOrderId,
+      cashi_provider_status: "CREATING",
+      updated_at: new Date().toISOString(),
+    }).eq("id", order.id).eq("user_id", userId).is("cashi_order_id", null);
+    if (reserveError) {
+      console.error("Cashi order ID reservation failed", reserveError);
+      return json({ error: "CASHI_ORDER_ID_RESERVATION_FAILED", detail: reserveError.message }, 500);
+    }
+
+    // Re-read the reserved ID in case another request raced this one.
+    const { data: reservedOrder, error: reservedReadError } = await service
+      .from("jsvidey_payment_orders")
+      .select("cashi_order_id")
+      .eq("id", order.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (reservedReadError || !reservedOrder?.cashi_order_id) {
+      console.error("Cashi reserved ID lookup failed", reservedReadError);
+      return json({ error: "CASHI_ORDER_ID_RESERVATION_FAILED" }, 500);
+    }
+    const reservedCashiOrderId = String(reservedOrder.cashi_order_id);
+    if (reservedCashiOrderId !== cashiOrderId) {
+      const recovered = await recoverExistingCashiOrder(reservedCashiOrderId, amount);
+      if (recovered) {
+        const { error: saveRaceError } = await service.from("jsvidey_payment_orders").update({
+          cashi_qr_url: recovered.qr_url,
+          cashi_checkout_url: recovered.checkout_url,
+          cashi_provider_status: recovered.provider_status,
+          cashi_provider_payload: recovered.payload,
+          updated_at: new Date().toISOString(),
+        }).eq("id", order.id).eq("user_id", userId);
+        if (saveRaceError) return json({ error: "PAYMENT_ORDER_SAVE_FAILED", detail: saveRaceError.message }, 500);
+        return json({ success: true, order_id: order.id, cashi_order_id: reservedCashiOrderId,
+          amount, qr_url: recovered.qr_url, checkout_url: recovered.checkout_url,
+          recovery_required: !recovered.qr_url && !recovered.checkout_url, reused: true });
+      }
+      return json({ success: true, order_id: order.id, cashi_order_id: reservedCashiOrderId,
+        amount, qr_url: null, checkout_url: null, recovery_required: true, reused: true,
+        message: "Transaksi Cashi sedang dipulihkan. Jangan membuat pembayaran lain." });
+    }
+
     const response = await fetch(CASHI_CREATE_URL, {
       method: "POST",
       headers: {
@@ -153,7 +205,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       // Match the working Showlink Cashi request format.
-      body: JSON.stringify({ amount, order_id: cashiOrderId }),
+      body: JSON.stringify({ amount, order_id: reservedCashiOrderId }),
     });
 
     const raw = await response.text();
@@ -194,11 +246,18 @@ Deno.serve(async (req) => {
           console.error("Cashi duplicate ID save failed", idSaveError);
           return json({ error: "PAYMENT_ORDER_SAVE_FAILED", detail: idSaveError.message }, 500);
         }
-        return json({ error: "CASHI_ORDER_EXISTS_NO_CHECKOUT",
-          detail: "Cashi sudah mencatat transaksi ini tetapi QR/checkout tidak bisa dipulihkan otomatis. Jangan membuat transaksi baru. Hubungi dukungan Cashi dengan Ref transaksi yang sama.",
-          provider_order_id: cashiOrderId }, 409);
+        return json({ success: true, order_id: order.id, cashi_order_id: cashiOrderId,
+          amount, qr_url: null, checkout_url: null, recovery_required: true, reused: true,
+          message: "Cashi sudah mencatat transaksi ini tetapi QR/checkout belum tersedia dari API status. Jangan membuat transaksi lain; minta dukungan Cashi memulihkan transaksi ini." });
       }
       console.error("Cashi create-order rejected", { status: response.status, providerMessage, response: result });
+      if (response.status >= 400 && response.status < 500 && response.status !== 409) {
+        // Explicit provider rejection: no successful order should have been created.
+        await service.from("jsvidey_payment_orders").update({
+          cashi_order_id: null, cashi_provider_status: "CREATE_REJECTED",
+          updated_at: new Date().toISOString(),
+        }).eq("id", order.id).eq("user_id", userId).eq("cashi_order_id", reservedCashiOrderId);
+      }
       return json({ error: "CASHI_CREATE_PAYMENT_FAILED", detail: String(providerMessage), provider_status: response.status }, 502);
     }
 
