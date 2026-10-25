@@ -8,7 +8,7 @@ try{const body=await req.json().catch(()=>({})),id=String(body.order_id||"").tri
  if(!h.startsWith("Bearer "))return json({error:"Login required"},401);
  const auth=createClient(su,env("SUPABASE_ANON_KEY"),{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{Authorization:h}}}),{data:ad,error:ae}=await auth.auth.getUser(),uid=ad.user?.id;
  if(ae||!uid)return json({error:"Invalid session"},401);
- const {data:o,error:oe}=await service.from("jsvidey_payment_orders").select("id,user_id,status,cashi_order_id").eq("id",id).maybeSingle();
+ const {data:o,error:oe}=await service.from("jsvidey_payment_orders").select("id,user_id,status,cashi_order_id,package,amount_idr").eq("id",id).maybeSingle();
  if(oe||!o)return json({error:"Order not found"},404);if(o.user_id!==uid)return json({error:"ORDER_ACCESS_DENIED"},403);
  if(o.status==="approved")return json({success:true,status:"APPROVED",paid:true,membership_activated:true});
  if(o.status==="rejected")return json({success:true,status:"REJECTED",paid:false});
@@ -18,7 +18,14 @@ try{const body=await req.json().catch(()=>({})),id=String(body.order_id||"").tri
  const providerData=r?.data&&typeof r.data==="object"?r.data:r;
  const status=String(providerData.status||r.status||providerData.payment_status||"").toUpperCase(),settled=["SETTLED","PAID","SUCCESS","COMPLETED"].includes(status);
  const patch:any={cashi_provider_status:status||"PENDING",cashi_provider_payload:r,updated_at:new Date().toISOString()};
- if(settled){patch.status="pending_review";patch.cashi_paid_at=new Date().toISOString()}
+ if(settled){
+   patch.cashi_paid_at=new Date().toISOString();
+   const {error:saveError}=await service.from("jsvidey_payment_orders").update(patch).eq("id",o.id);
+   if(saveError){console.error(saveError);return json({error:"PAYMENT_STATUS_SAVE_FAILED"},500)}
+   const {data:activation,error:activationError}=await service.rpc("jsvidey_activate_paid_membership",{p_order_id:o.id,p_cashi_status:status});
+   if(activationError){console.error("Membership activation failed after verified Cashi settlement",activationError);return json({error:"MEMBERSHIP_ACTIVATION_FAILED",detail:activationError.message,paid:true},500)}
+   return json({success:true,status:"APPROVED",provider_status:status,paid:true,membership_activated:true,package:o.package,activation,message:"Pembayaran lunas dikonfirmasi Cashi. Membership telah diaktifkan otomatis sesuai paket."});
+ }
  const {error:ue}=await service.from("jsvidey_payment_orders").update(patch).eq("id",o.id);if(ue){console.error(ue);return json({error:"PAYMENT_STATUS_SAVE_FAILED"},500)}
- return json({success:true,status:status||"PENDING",paid:settled,membership_activated:false,message:settled?"Pembayaran terdeteksi lunas oleh Cashi. Menunggu verifikasi admin sebelum membership aktif.":"Cashi belum mengonfirmasi pembayaran lunas."});
+ return json({success:true,status:status||"PENDING",paid:false,membership_activated:false,message:"Cashi belum mengonfirmasi pembayaran lunas."});
 }catch(e){console.error(e);return json({error:e instanceof Error?e.message:"Internal server error"},500)}});
