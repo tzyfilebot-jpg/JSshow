@@ -3,20 +3,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 (() => {
   const $ = id => document.getElementById(id);
-  function normalizeThumbnail(raw) {
-    const value = String(raw || '').trim();
-    if (!value) return '';
-    try {
-      const url = new URL(value);
-      if (!/^https?:$/.test(url.protocol)) return '';
-      const host = url.hostname.toLowerCase();
-      if (host === 'drive.google.com' || host === 'docs.google.com' || host === 'drive.usercontent.google.com') {
-        const id = (url.pathname.match(/\/file\/d\/([^/]+)/) || [])[1] || url.searchParams.get('id');
-        if (id) return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w1200';
-      }
-      return value;
-    } catch (_) { return ''; }
-  }
   const withTimeout = (promise, ms = 12000, message = 'Permintaan ke Supabase terlalu lama.') =>
     Promise.race([
       Promise.resolve(promise),
@@ -33,9 +19,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       const { data, error } = await withTimeout(
         db.auth.getUser(), 8000, 'Pemeriksaan status login terlalu lama. Periksa koneksi lalu coba lagi.'
       );
-      // Supabase may return AuthSessionMissingError when the visitor is simply logged out.
-      // Treat that expected state as signed-out, not as a system failure.
-      if (error && !/auth session missing|session missing|no session/i.test(String(error.message || error.name || ''))) throw error;
+      if (error) throw error;
       if (data?.user) {
         currentUser = data.user;
         return data.user;
@@ -52,15 +36,29 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     }
   }
   let noticeTimer = null;
-  const notice = (message, kind = 'info') => {
+  const notice = (message, kind = 'info', iconName = '') => {
     const el = $('socialNotice');
     if (!el) return;
-    el.textContent = message;
-    el.dataset.kind = kind;
-    el.classList.add('is-visible');
+    const lower = String(message || '').toLowerCase();
+    const icon = iconName || (lower.includes('bagikan') || lower.includes('link video') ? 'fa-share-nodes' :
+      lower.includes('komentar') ? 'fa-comment-dots' : lower.includes('favorit') ? 'fa-bookmark' :
+      lower.includes('like') || lower.includes('disukai') ? 'fa-heart' :
+      lower.includes('login') || lower.includes('daftar') ? 'fa-right-to-bracket' : 'fa-circle-check');
+    el.replaceChildren();
+    const glyph = document.createElement('span'); glyph.className = 'social-toast-icon';
+    glyph.innerHTML = '<i class="fa-solid '+icon+'" aria-hidden="true"></i>';
+    const copy = document.createElement('span'); copy.className = 'social-toast-copy';
+    const text = document.createElement('span'); text.className = 'social-toast-message'; text.textContent = message;
+    copy.append(text);
+    const urlMatch = String(message || '').match(/https?:\/\/[^\s]+/);
+    if (urlMatch && (lower.includes('bagikan') || lower.includes('link'))) {
+      const link = document.createElement('a'); link.className = 'social-toast-link'; link.href = urlMatch[0]; link.textContent = urlMatch[0]; link.target = '_blank'; link.rel = 'noopener noreferrer'; copy.append(link);
+    }
+    el.append(glyph, copy);
+    el.dataset.kind = kind; el.classList.add('is-visible');
     el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
     if (noticeTimer) clearTimeout(noticeTimer);
-    noticeTimer = setTimeout(() => el.classList.remove('is-visible'), 5200);
+    noticeTimer = setTimeout(() => el.classList.remove('is-visible'), 3000);
   };
   const params = new URLSearchParams(location.search);
   let videoId = params.get('id');
@@ -145,7 +143,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
   // These actions are local/browser actions and must remain responsive even if Supabase fails.
   commentJumpButton?.addEventListener('click', () => {
-    notice('Bagian komentar dibuka. Tulis komentarmu lalu tekan Kirim komentar.');
+    notice('Komentar — tulis pendapatmu lalu tekan Kirim komentar.', 'info', 'fa-comment-dots');
     commentsSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     commentInput?.focus({ preventScroll: true });
   });
@@ -154,7 +152,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
-        notice('Link video berhasil disalin. Silakan tempel untuk membagikannya.', 'success');
+        notice('Link siap dibagikan: ' + shareUrl, 'success', 'fa-share-nodes');
         recordShareEvent();
         return;
       }
@@ -172,7 +170,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         field.setSelectionRange(0, field.value.length);
         const copied = document.execCommand('copy');
         field.remove();
-        if (copied) { notice('Link video berhasil disalin. Silakan tempel untuk membagikannya.', 'success'); recordShareEvent(); }
+        if (copied) { notice('Link siap dibagikan: ' + shareUrl, 'success', 'fa-share-nodes'); recordShareEvent(); }
         else notice('Link belum dapat disalin otomatis. Salin link ini: ' + shareUrl, 'error');
       } catch (_) {
         notice('Link belum dapat disalin otomatis. Salin link ini: ' + shareUrl, 'error');
@@ -434,12 +432,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         const { error } = await withTimeout(db.from('video_favorites').delete().eq('user_id', user.id).eq('video_id', videoId), 12000, 'Penghapusan Favorit terlalu lama.');
         if (error) throw error;
         favorited = false;
-        notice('Video dihapus dari My Favorit.');
+        notice('Video dihapus dari Favorit.', 'success', 'fa-bookmark');
       } else {
         const { error } = await withTimeout(db.from('video_favorites').insert({ user_id: user.id, video_id: videoId }), 12000, 'Penyimpanan Favorit terlalu lama.');
         if (error && error.code !== '23505') throw error;
         favorited = true;
-        notice('Video ditambahkan ke My Favorit.');
+        notice('Video ditambahkan ke Favorit.', 'success', 'fa-bookmark');
       }
       renderFavorite();
     } catch (error) {
@@ -472,7 +470,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       }), 12000, 'Pengiriman komentar terlalu lama.');
       if (error) throw error;
       commentInput.value = '';
-      notice('Komentar berhasil disimpan.');
+      notice('Komentar berhasil dikirim.', 'success', 'fa-comment-dots');
       await loadComments();
     } catch (error) {
       notice('Komentar gagal: ' + (error?.message || 'Periksa login, tabel video_comments, dan izin Supabase.'), 'error');
@@ -523,14 +521,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         card.href = href;
         const thumb = document.createElement('div');
         thumb.className = 'related-thumb';
-        const thumbnailUrl = normalizeThumbnail(row.thumbnail_url || row.thumbnail || row.thumbnailUrl);
-        if (thumbnailUrl) {
+        if (row.thumbnail_url) {
           const img = document.createElement('img');
-          img.src = thumbnailUrl;
+          img.src = row.thumbnail_url;
           img.alt = '';
           img.loading = 'lazy';
           img.referrerPolicy = 'no-referrer';
-          img.onerror = () => { img.remove(); thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>'; };
           thumb.append(img);
         } else {
           thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>';
