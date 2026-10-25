@@ -9,7 +9,7 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
  if(!videoSlug && !videoId){const parts=location.pathname.split('/').filter(Boolean);if(parts.length===1 && !parts[0].includes('.')){try{videoSlug=decodeURIComponent(parts[0]);}catch(_){videoSlug=parts[0];}}}
  const state=$('state'),player=$('player'),frame=$('embedFrame'),iframe=$('embedPlayer');
  const ratioTools=$('ratioTools');
- const entryNotice=$('watchEntryNotice'),entryThumb=$('watchEntryThumbnail'),entryTitle=$('watchEntryTitle'),entryPlay=$('watchEntryPlay'),entryJoin=$('watchEntryJoin'),entryLoading=$('watchEntryLoading'),entryClose=$('watchNoticeClose');
+ const entryNotice=$('watchEntryNotice'),entryThumb=$('watchEntryThumbnail'),entryTitle=$('watchEntryTitle'),entryPlay=$('watchEntryPlay'),entryJoin=$('watchEntryJoin'),entryLoading=$('watchEntryLoading');
  let pendingVideo=null,playStarting=false;
  function openEntryNotice(record){
    pendingVideo=record; playStarting=false;
@@ -21,11 +21,10 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
  }
  function closeEntryNotice(){if(entryNotice)entryNotice.hidden=true;}
  if(entryJoin)entryJoin.href='https://t.me/+DqdGHeiPZA9mYTQx';
- if(entryClose)entryClose.addEventListener('click',()=>{ closeEntryNotice(); if(entryLoading)entryLoading.hidden=true; if(entryPlay){entryPlay.disabled=false;entryPlay.innerHTML='<i class="fa-solid fa-play"></i> Play';} playStarting=false; });
  if(entryPlay)entryPlay.addEventListener('click',async()=>{
    if(playStarting||!pendingVideo)return;
    playStarting=true; entryPlay.disabled=true;
-   if(entryLoading)entryLoading.hidden=true;
+   if(entryLoading){entryLoading.hidden=false;entryLoading.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Menyiapkan pemutar…';}
    entryPlay.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Membuka…';
    // Do not await a countdown before opening the player: mobile browsers can
    // discard the user's playback gesture after an async delay.
@@ -142,7 +141,7 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
    if(status)status.textContent=m.provider==='Google Drive'?'Media: Google Drive. Pastikan file disetel “Siapa saja yang memiliki link” sebagai Viewer; file privat atau yang dibatasi organisasi tidak dapat diputar melalui embed.':'Media: '+m.provider+'. Tombol Download tersedia di bagian bawah video jika penyedia mendukungnya.';
    const downloadPageButton=$('downloadPageButton');if(downloadPageButton)downloadPageButton.href='/download.html?id='+encodeURIComponent(videoId);
  }
- const startupWatchdog=setTimeout(()=>{if(state&&!state.hidden&&!state.classList.contains('error')&&(!entryNotice||entryNotice.hidden)){fail('Halaman video belum berhasil menyiapkan data. Periksa koneksi atau fungsi lookup video di Supabase, lalu muat ulang.');}},20000);
+ const startupWatchdog=setTimeout(()=>{if(state&&!state.hidden&&!state.classList.contains('error')&&(!entryNotice||entryNotice.hidden)){fail('Halaman video belum berhasil menyiapkan data. Periksa koneksi atau fungsi lookup video di Supabase, lalu muat ulang.');}},14000);
  if(!videoId&&!videoSlug){clearTimeout(startupWatchdog);fail('Link video tidak ditemukan. Buka tautan video yang valid.');return;}
  if(videoId&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(videoId)){
    // URL pendek lama dapat masuk sebagai ?id=slug; perlakukan sebagai slug.
