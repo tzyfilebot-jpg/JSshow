@@ -166,7 +166,10 @@ Deno.serve(async (req) => {
           cashi_qr_url: recovered.qr_url,
           cashi_checkout_url: recovered.checkout_url,
           cashi_provider_status: recovered.provider_status,
-          cashi_provider_payload: recovered.payload,
+          cashi_provider_payload: {
+            ...(order.cashi_provider_payload && typeof order.cashi_provider_payload === "object" ? order.cashi_provider_payload : {}),
+            recovery_response: recovered.payload,
+          },
           updated_at: new Date().toISOString(),
         }).eq("id", order.id).eq("user_id", userId);
         if (saveRecoveredError) {
