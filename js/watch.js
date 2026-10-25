@@ -23,12 +23,33 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
  if(entryJoin)entryJoin.href='https://t.me/+DqdGHeiPZA9mYTQx';
  if(entryClose)entryClose.addEventListener('click',()=>{ closeEntryNotice(); if(entryLoading)entryLoading.hidden=true; if(entryPlay){entryPlay.disabled=false;entryPlay.innerHTML='<i class="fa-solid fa-play"></i> Play';} playStarting=false; });
  if(entryPlay)entryPlay.addEventListener('click',async()=>{
-   if(playStarting||!pendingVideo)return; playStarting=true; entryPlay.disabled=true;
-   if(entryLoading)entryLoading.hidden=false; entryPlay.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Memuat…';
+   if(playStarting||!pendingVideo)return;
+   playStarting=true; entryPlay.disabled=true;
+   if(entryLoading)entryLoading.hidden=false;
+   entryPlay.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Memuat…';
    await new Promise(resolve=>setTimeout(resolve,3000));
-   closeEntryNotice(); showEmbed(pendingVideo.video_url,pendingVideo.title);
-   if(player && !player.hidden){try{await player.play();}catch(_){/* Browser may require a second tap for playback. */}}
-   playStarting=false;
+   const selected=pendingVideo;
+   closeEntryNotice();
+   try {
+     showEmbed(selected.video_url,selected.title);
+     if(player && !player.hidden) {
+       // Explicitly start a fresh media load. Some mobile browsers don't start
+       // playback automatically after an async delay, so keep native controls visible.
+       player.load();
+       try {
+         await player.play();
+       } catch (_) {
+         const status=$('statusText');
+         if(status)status.textContent='Video siap. Tekan tombol ▶ pada pemutar untuk mulai menonton.';
+       }
+     }
+   } catch(error) {
+     fail('Video tidak dapat dibuka: '+(error?.message||'Periksa URL video.'));
+   } finally {
+     playStarting=false;
+     if(entryLoading)entryLoading.hidden=true;
+     if(entryPlay){entryPlay.disabled=false;entryPlay.innerHTML='<i class="fa-solid fa-play"></i> Play';}
+   }
  });
  const ratioButtons=ratioTools?Array.from(ratioTools.querySelectorAll('[data-ratio]')):[];
  function setRatio(mode){if(frame){frame.classList.toggle('landscape',mode==='landscape');frame.classList.toggle('portrait',mode==='portrait');}ratioButtons.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.ratio===mode)));}
@@ -65,9 +86,28 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
    const m=classify(url);
    window.__sourceVideoUrl=url;
    const titleEl=$('videoTitle');if(titleEl)titleEl.textContent=title||'Video Jsvidey';
-   if(m.direct){if(ratioTools)ratioTools.hidden=true;frame.classList.remove('portrait','landscape');iframe.removeAttribute('src');frame.hidden=true;player.onerror=()=>{const msg='Video gagal dimuat. Periksa apakah link masih aktif dan dapat diakses publik. Untuk MP4, gunakan URL file langsung yang mengembalikan video/mp4; jika link berasal dari Videy, coba buka link tersebut di tab baru untuk memastikan sumbernya masih tersedia.';if(state){state.hidden=false;state.classList.add('error');state.textContent=msg;}const status=$('statusText');if(status)status.textContent=msg;};player.onloadeddata=()=>{if(state)state.hidden=true;};player.src=m.embed;player.hidden=false;player.controls=true;player.setAttribute('controls','');player.setAttribute('playsinline','');player.onloadedmetadata=()=>{if(player.videoWidth&&player.videoHeight){player.style.aspectRatio=player.videoWidth+'/'+player.videoHeight;}};}
+   if(m.direct){
+     if(ratioTools)ratioTools.hidden=true;
+     frame.classList.remove('portrait','landscape');
+     iframe.removeAttribute('src');frame.hidden=true;
+     player.pause();player.removeAttribute('src');player.load();
+     player.onerror=()=>{
+       const msg='Video gagal dimuat di pemutar JSSHOW. Pastikan URL MP4 aktif dan penyedia mengizinkan pemutaran dari website lain.';
+       if(state){state.hidden=false;state.classList.add('error');state.textContent=msg;}
+       const status=$('statusText');if(status)status.textContent=msg;
+     };
+     player.onloadeddata=()=>{if(state){state.hidden=true;state.classList.remove('error');}};
+     player.onloadedmetadata=()=>{
+       if(player.videoWidth&&player.videoHeight)player.style.aspectRatio=player.videoWidth+'/'+player.videoHeight;
+     };
+     player.src=m.embed;
+     player.hidden=false;player.controls=true;
+     player.setAttribute('controls','');player.setAttribute('playsinline','');
+     player.load();
+   }
    else{player.pause();player.removeAttribute('src');player.load();player.hidden=true;iframe.src=m.embed;frame.hidden=false;const isDrive=m.provider==='Google Drive';if(ratioTools)ratioTools.hidden=!isDrive;setRatio('landscape');}
-   if(state)state.hidden=true;
+   if(state && !m.direct)state.hidden=true;
+   else if(state && m.direct){state.hidden=false;state.classList.remove('error');state.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i><span>Menyiapkan video…</span>';}
    const status=$('statusText');
    if(status)status.textContent=m.provider==='Google Drive'?'Media: Google Drive. Pastikan file disetel “Siapa saja yang memiliki link” sebagai Viewer; file privat atau yang dibatasi organisasi tidak dapat diputar melalui embed.':'Media: '+m.provider+'. Tombol Download tersedia di bagian bawah video jika penyedia mendukungnya.';
    const downloadPageButton=$('downloadPageButton');if(downloadPageButton)downloadPageButton.href='/download.html?id='+encodeURIComponent(videoId);
