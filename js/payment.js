@@ -10,6 +10,26 @@ const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
  let db=null,user=null,orderId=null,qrCreated=false;
  function message(t,bad=false,target='orderMessage'){const el=$(target);if(!el)return;el.textContent=t;el.classList.toggle('error',bad)}
  function safeUrl(s){try{const u=new URL(String(s||''));return u.protocol==='https:'?u.href:''}catch(_){return''}}
+ async function functionErrorDetail(error){
+   const ctx=error&&error.context;
+   if(ctx){
+     try{
+       if(typeof ctx.clone==='function'){
+         const raw=await ctx.clone().text();
+         let body={};try{body=JSON.parse(raw)}catch(_){body={detail:raw}}
+         if(body&&(body.detail||body.message||body.error))return [body.error,body.detail||body.message].filter(Boolean).join(': ');
+       } else if(typeof ctx.json==='function'){
+         const body=await ctx.json();
+         if(body&&(body.detail||body.message||body.error))return [body.error,body.detail||body.message].filter(Boolean).join(': ');
+       } else if(typeof ctx==='object'){
+         const body=ctx.json||ctx.body||ctx;
+         if(body&&(body.detail||body.message||body.error))return [body.error,body.detail||body.message].filter(Boolean).join(': ');
+       }
+     }catch(_){}
+   }
+   return error?.message||'Permintaan ke server pembayaran gagal. Periksa log Edge Function.';
+ }
+
  function safeQrSource(s){
    const value=String(s||'').trim();
    // Cashi documents QRIS as a data:image/png URI; allow only safe raster image data URIs.
@@ -21,8 +41,7 @@ const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
    const qr=safeQrSource(data.qr_url||data.qrUrl),checkout=safeUrl(data.checkout_url||data.checkoutUrl);
    if(qr){const img=document.createElement('img');img.src=qr;img.alt='QR pembayaran Cashi';img.loading='eager';img.addEventListener('error',()=>{$('qrFrame').innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-triangle-exclamation"></i><b>QR gagal ditampilkan</b><small>Gunakan tombol Buka pembayaran Cashi jika tersedia, atau coba buat QR lagi.</small></div>';qrCreated=!!checkout;$('retryCashi').hidden=qrCreated;},{once:true});$('qrFrame').replaceChildren(img)}
    else if(checkout){$('qrFrame').innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-arrow-up-right-from-square"></i><b>QR tidak disediakan</b><small>Lanjutkan melalui halaman pembayaran Cashi.</small></div>'}
-   else if(data.recovery_required) $('qrFrame').innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-clock"></i><b>Transaksi Cashi ditemukan</b><small>QR/checkout belum dikirim oleh Cashi. Jangan membayar transaksi lain; hubungi admin dengan ID transaksi di bawah.</small></div>';
-   else $('qrFrame').innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-triangle-exclamation"></i><b>QR belum diterima</b><small>Periksa koneksi lalu coba lagi.</small></div>';
+   else $('qrFrame').innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-triangle-exclamation"></i><b>QR belum diterima</b><small>Tekan coba lagi atau hubungi admin.</small></div>';
    let link=$('cashCheckoutLink');
    if(checkout){link.href=checkout;link.hidden=false}else{link.hidden=true;link.removeAttribute('href')}
    $('payAmount').textContent=fmt(Number(data.amount||plan.amount));
@@ -33,10 +52,8 @@ const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
    const {data,error}=await db.functions.invoke('jsvidey-cashi-create-payment',{body:{order_id:id}});
    $('retryCashi').disabled=false;
    if(error){
-     let payload=error.context?.json||error.context?.body||{};
-     if(typeof payload==='string'){try{payload=JSON.parse(payload)}catch(_){payload={detail:payload}}}
-     let detail=payload.detail||payload.message||error.message||'Gagal membuat QR Cashi.';
-     if(payload.error==='CASHI_ORDER_EXISTS_NO_CHECKOUT'||/DUPLICATE_ORDER_ID|duplicate order_id/i.test(detail)){
+     let detail=await functionErrorDetail(error);
+     if(/CASHI_ORDER_EXISTS_NO_CHECKOUT|DUPLICATE_ORDER_ID|duplicate order_id/i.test(detail)){
        detail='Cashi sudah memiliki transaksi untuk pesanan ini, tetapi QR/checkout belum berhasil dipulihkan. Jangan membuat transaksi baru. Hubungi admin/Cashi untuk memulihkan transaksi yang sama.';
        $('retryCashi').hidden=true;
      } else $('retryCashi').hidden=false;
@@ -49,7 +66,7 @@ const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
      return false;
    }
    renderInvoice(data);
-   if(data.recovery_required) message((data.message||'Transaksi Cashi ditemukan, tetapi QR/checkout belum tersedia.')+' ID transaksi: '+String(data.cashi_order_id||data.order_id||id)+'. Jangan membayar pesanan lain sampai status ini jelas.',true,'paymentStatus');
+   if(data.recovery_required) message('Transaksi lama ditemukan di Cashi, tetapi QR/checkout tidak dikirim oleh API. Jangan membuat transaksi baru; hubungi admin/Cashi untuk pemulihan checkout.',true,'paymentStatus');
    else message(data.reused?'Transaksi Cashi lama berhasil dipulihkan. Periksa QR/tautan pembayaran di atas.':'QR Cashi dibuat. Bayar tepat sesuai nominal yang ditampilkan.',false,'paymentStatus');
    return true;
  }
@@ -78,7 +95,7 @@ const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
    const btn=$('checkPayment');btn.disabled=true;message('Memeriksa status langsung ke Cashi…',false,'paymentStatus');
    try{
      const {data,error}=await db.functions.invoke('jsvidey-cashi-check-status',{body:{order_id:orderId}});
-     if(error)throw new Error(error.message||'Pengecekan Cashi gagal');
+     if(error)throw new Error(await functionErrorDetail(error));
      if(data?.error)throw new Error(data.detail||data.error);
      if(data?.status==='APPROVED'){message('Pembayaran disetujui admin. Membership sudah diproses.',false,'paymentStatus');$('submitProof').disabled=true;return}
      if(data?.status==='REJECTED'){message('Pembayaran ditolak admin. Periksa catatan admin atau hubungi admin.',true,'paymentStatus');return}
