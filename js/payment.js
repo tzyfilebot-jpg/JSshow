@@ -31,32 +31,38 @@ const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
  }
 
  function safeQrSource(s){
-   if(s&&typeof s==='object'){
-     s=s.data_url||s.dataUrl||s.url||s.qrUrl||s.qr_url||s.base64||s.content||'';
+   if(s && typeof s==='object'){
+     s=s.data_url||s.dataUrl||s.url||s.qrUrl||s.qr_url||s.base64||s.content||s.qr||'';
    }
    const value=String(s||'').trim();
    if(/^https:\/\//i.test(value))return safeUrl(value);
+   // Cashi's qrUrl is commonly a data URI. Keep its original MIME type
+   // instead of rejecting image types not anticipated by the previous parser.
    if(/^data:image\//i.test(value)){
-     const comma=value.indexOf(',');if(comma<0)return'';
-     const meta=value.slice(0,comma).replace(/\s+/g,'').toLowerCase();
-     let payload=value.slice(comma+1).trim();
-     if(/^data:image\/(?:png|jpeg|jpg|webp);base64$/i.test(meta)){
-       payload=payload.replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');
-       if(!payload||!/^[A-Za-z0-9+/]*={0,2}$/.test(payload))return'';
-       payload=payload.replace(/=+$/,'');payload+='='.repeat((4-payload.length%4)%4);
-       return meta+','+payload;
+     const comma=value.indexOf(',');
+     if(comma<0)return '';
+     const meta=value.slice(0,comma).trim();
+     const payload=value.slice(comma+1).trim();
+     if(!payload)return '';
+     if(/;base64$/i.test(meta)){
+       const compact=payload.replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');
+       if(!compact||!/^[A-Za-z0-9+/]*={0,2}$/.test(compact))return '';
+       let normalized=compact.replace(/=+$/,'');
+       normalized+='='.repeat((4-normalized.length%4)%4);
+       return meta+','+normalized;
      }
-     // Some providers return a percent-encoded image data URI.
-     if(/^data:image\/(?:svg\+xml|png|jpeg|jpg|webp);charset=utf-8$/i.test(meta)&&payload.length>20&&/%[0-9a-f]{2}/i.test(payload))return value;
+     // Accept valid non-base64 data URIs, including percent-encoded SVG.
+     if(/%[0-9a-f]{2}/i.test(payload)||/^data:image\/svg\+xml/i.test(value))return value;
      return '';
    }
-   // Raw base64 image data. Reject explanatory placeholders and short strings.
-   let payload=value.replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');
-   if(payload.length>100&&/^[A-Za-z0-9+/]+={0,2}$/.test(payload)){
-     payload=payload.replace(/=+$/,'');payload+='='.repeat((4-payload.length%4)%4);
-     return'data:image/png;base64,'+payload;
+   // Some gateways return a bare base64 image rather than a data URI.
+   const compact=value.replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');
+   if(compact.length>100&&/^[A-Za-z0-9+/]+={0,2}$/.test(compact)){
+     let normalized=compact.replace(/=+$/,'');
+     normalized+='='.repeat((4-normalized.length%4)%4);
+     return 'data:image/png;base64,'+normalized;
    }
-   return'';
+   return '';
  }
  function showPayStage(id){$('orderStage').hidden=true;$('payStage').hidden=false;$('orderIdText').textContent=id;window.scrollTo({top:0,behavior:'smooth'})}
  function renderInvoice(data){
