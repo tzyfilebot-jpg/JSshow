@@ -179,18 +179,25 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
    );
    if (error) throw new Error(error.message || 'Lookup video gagal. Pastikan SQL lookup video sudah diterapkan.');
    let record = Array.isArray(data) ? data[0] : data;
-   if(!record || record.status!=='published'){
-     fail('Video tidak ditemukan atau belum dipublikasikan.'); return;
-   }
-   // The secure embed lookup may omit thumbnail fields. Enrich from the public
-   // catalog RPC so the admin-saved thumbnail is still available on Watch.
-   if(!(record.thumbnail_url||record.thumbnail||record.thumbnailUrl||record.thumbnail_url_public)){
+   // The secure embed RPC intentionally hides VIP/Premium media URLs from users
+   // without access. A missing row therefore does not mean the video is missing:
+   // resolve safe published metadata from the catalogue and show the membership gate.
+   let catalogRows=[];
+   if(!record || record.status!=='published' || !(record.thumbnail_url||record.thumbnail||record.thumbnailUrl||record.thumbnail_url_public)){
      try {
-       const catalog=await watchWithTimeout(db.rpc('jsvidey_catalog_videos'),5000,'');
-       const rows=Array.isArray(catalog?.data)?catalog.data:[];
-       const match=rows.find(row=>(record.id&&row.id===record.id)||(record.slug&&row.slug===record.slug)||(videoSlug&&row.slug===videoSlug));
-       if(match) record={...match,...record,thumbnail_url:match.thumbnail_url||match.thumbnail||match.thumbnailUrl||match.thumbnail_url_public||record.thumbnail_url};
-     } catch(_) { /* Thumbnail enrichment is optional; never block playback. */ }
+       const catalog=await watchWithTimeout(db.rpc('jsvidey_catalog_videos'),7000,'');
+       catalogRows=Array.isArray(catalog?.data)?catalog.data:[];
+       const match=catalogRows.find(row=>
+         (videoSlug && String(row.slug||'')===String(videoSlug)) ||
+         (videoId && String(row.id||'')===String(videoId)) ||
+         (record?.id && String(row.id||'')===String(record.id)) ||
+         (record?.slug && String(row.slug||'')===String(record.slug))
+       );
+       if(match && match.status==='published') record={...match,...(record||{}),status:record?.status||match.status,thumbnail_url:record?.thumbnail_url||record?.thumbnail||match.thumbnail_url||match.thumbnail||match.thumbnailUrl||match.thumbnail_url_public};
+     } catch(_) { /* Catalogue fallback is optional if the secure lookup succeeded. */ }
+   }
+   if(!record || record.status!=='published'){
+     fail('Video tidak ditemukan atau belum dipublikasikan. Pastikan slug benar dan video berstatus Published di panel admin.'); return;
    }
    // Always verify member access before exposing the player. Some public lookup
    // functions can return metadata even for VIP/Premium records.
@@ -199,11 +206,16 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
      const access=await watchWithTimeout(db.rpc('jsvidey_video_access_status',{p_video_id:record.id||videoId||null,p_slug:record.slug||videoSlug||null}),8000,'Pemeriksaan akses video terlalu lama.');
      if(!access.error){accessInfo=Array.isArray(access.data)?access.data[0]:access.data;}
    } catch(accessError) { console.warn('Video access check unavailable:',accessError); }
-   const accessRequired=Boolean(accessInfo && accessInfo.allowed===false) || !record.video_url;
+   const rawAudience=String(accessInfo?.audience||record.audience||record.access_level||record.visibility||record.tier||'public').toLowerCase();
+   const rawCategory=String(accessInfo?.category||record.category||'').toLowerCase();
+   const isPremium=rawAudience.includes('premium');
+   const isVip=rawAudience==='vip'||rawCategory.startsWith('server');
+   const membershipVideo=isVip||isPremium||rawAudience==='members';
+   const accessRequired=Boolean(accessInfo && accessInfo.allowed===false) || (!record.video_url && membershipVideo);
    if(accessRequired){
-     const rawAudience=String(accessInfo?.audience||record.audience||record.access_level||record.visibility||record.tier||'premium').toLowerCase();
-     const premium=rawAudience.includes('premium');
-     const message=premium?'Video ini khusus anggota Premium.':'Video ini khusus anggota VIP dan Premium.';
+     const premium=isPremium;
+     const tierLabel=premium?'Video Premium':(isVip?'Video VIP':'Video khusus anggota');
+     const message=tierLabel;
      let signedIn=false;
      try { const auth=await watchWithTimeout(db.auth.getSession(),5000,''); signedIn=Boolean(auth?.data?.session?.user); } catch (_) {}
      const next=location.pathname+location.search;
@@ -215,8 +227,13 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
      const accessBox=$('watchAccessNotice');
      if(accessBox){
        const rawThumb=normalizeThumbnailUrl(record.thumbnail_url||record.thumbnail||record.thumbnailUrl||record.thumbnail_url_public||'');
+       const accessDescription=premium
+         ? 'Silahkan Login Dan Jadi Member Premium Untuk melihat Semua Video Premium Yang lebih menarik Lain nya.'
+         : (isVip
+           ? 'Silahkan Login Dan Jadi Member VIP Untuk melihat Semua Video VIP Yang lebih menarik Lain nya.'
+           : 'Silahkan login atau daftar terlebih dahulu untuk melihat video khusus anggota.');
        accessBox.innerHTML=(rawThumb?'<img class="watch-access-thumbnail" alt="Thumbnail video" src="'+rawThumb.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'">':'')+
-         '<div class="watch-access-icon"><i class="fa-solid fa-crown"></i></div><strong>'+message+'</strong><p>'+(signedIn?'Upgrade status akunmu untuk membuka video ini.':'Login atau daftar terlebih dahulu. Setelah masuk, kamu dapat upgrade status akun untuk menonton video ini.')+'</p><div class="watch-access-actions">'+actions+'</div>';
+         '<div class="watch-access-icon"><i class="fa-solid fa-crown"></i></div><strong>'+message+'</strong><p>'+accessDescription+'</p><div class="watch-access-actions">'+actions+'</div><small class="watch-access-provider-note">Pemutaran mengikuti izin dan dukungan embed penyedia media.</small>';
        accessBox.hidden=false;
        const img=accessBox.querySelector('img'); if(img)img.onerror=()=>img.remove();
      }
