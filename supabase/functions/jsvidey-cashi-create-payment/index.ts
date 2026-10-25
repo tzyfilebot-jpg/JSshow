@@ -74,7 +74,7 @@ async function recoverExistingCashiOrder(orderId: string, amount: number) {
     }
     const payload = result?.data && typeof result.data === "object" ? result.data : result;
     const nestedPayment = payload.payment && typeof payload.payment === "object" ? payload.payment : {};
-    const qr = payload.qrUrl ?? payload.qr_url ?? payload.qr_url_base64 ?? payload.qr ?? nestedPayment.qrUrl ?? nestedPayment.qr_url ?? result?.qrUrl ?? result?.qr_url ?? null;
+    const qr = payload.qrUrl ?? payload.qr_url ?? payload.qr_url_base64 ?? payload.qr_image_url ?? payload.qr_code_url ?? payload.qr_data_url ?? payload.qr ?? nestedPayment.qrUrl ?? nestedPayment.qr_url ?? nestedPayment.qr_code_url ?? result?.qrUrl ?? result?.qr_url ?? result?.qr_code_url ?? null;
     const checkout = payload.checkout_url ?? payload.checkoutUrl ?? payload.payment_url ?? payload.paymentUrl ?? nestedPayment.checkout_url ?? nestedPayment.checkoutUrl ?? result?.checkout_url ?? result?.checkoutUrl ?? null;
     const qrUrl = normalizeCashiQr(qr);
     const checkoutCandidate = checkout ? String(checkout).trim() : null;
@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
     const providerOrderId = String(providerData.orderId || providerData.order_id || result.orderId || result.order_id || cashiOrderId);
     const finalAmount = Number(providerData.amount ?? result.amount ?? amount);
     const nestedPayment = providerData.payment && typeof providerData.payment === "object" ? providerData.payment : {};
-    const qrValue = providerData.qrUrl ?? providerData.qr_url ?? providerData.qr_url_base64 ?? providerData.qr ?? nestedPayment.qrUrl ?? nestedPayment.qr_url ?? result.qrUrl ?? result.qr_url ?? null;
+    const qrValue = providerData.qrUrl ?? providerData.qr_url ?? providerData.qr_url_base64 ?? providerData.qr_image_url ?? providerData.qr_code_url ?? providerData.qr_data_url ?? providerData.qr ?? nestedPayment.qrUrl ?? nestedPayment.qr_url ?? nestedPayment.qr_code_url ?? result.qrUrl ?? result.qr_url ?? result.qr_code_url ?? null;
     const checkoutValue = providerData.checkout_url ?? providerData.checkoutUrl ?? providerData.payment_url ?? providerData.paymentUrl ?? nestedPayment.checkout_url ?? nestedPayment.checkoutUrl ?? result.checkout_url ?? result.checkoutUrl ?? null;
     let qrUrl = normalizeCashiQr(qrValue);
     const checkoutCandidate = checkoutValue ? String(checkoutValue).trim() : null;
@@ -257,6 +257,10 @@ Deno.serve(async (req) => {
 
     if (!Number.isFinite(finalAmount) || finalAmount <= 0) {
       return json({ error: "CASHI_RETURNED_INVALID_AMOUNT" }, 502);
+    }
+    if (finalAmount !== amount) {
+      console.error("Cashi amount mismatch", { orderId: order.id, expected: amount, received: finalAmount });
+      return json({ error: "CASHI_AMOUNT_MISMATCH", detail: "Nominal yang dikembalikan Cashi tidak sama dengan nominal paket. Jangan membayar QR ini; hubungi admin." }, 502);
     }
     // If the create response's QR field is malformed, query the same provider order
     // once. Never create a second order to work around a missing QR.
