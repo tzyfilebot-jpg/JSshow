@@ -16,12 +16,19 @@ try{
  if(o.status==="rejected")return json({error:"Order rejected; contact admin"},409);
  if(o.cashi_order_id&&(o.cashi_qr_url||o.cashi_checkout_url)&&String(o.cashi_provider_status||"").toUpperCase()!=="FAILED")
   return json({success:true,order_id:o.id,cashi_order_id:o.cashi_order_id,amount:o.amount_idr,qr_url:o.cashi_qr_url||null,checkout_url:o.cashi_checkout_url||null,reused:true});
- const cashiId=`JSV-${o.id}`, resp=await fetch(URL,{method:"POST",headers:{"x-api-key":env("CASHI_API_KEY"),"Content-Type":"application/json"},body:JSON.stringify({amount:Number(o.amount_idr),order_id:cashiId})});
- const r=await resp.json().catch(()=>({}));if(!resp.ok||r?.success!==true){console.error("Cashi create rejected",r);return json({error:"CASHI_CREATE_PAYMENT_FAILED",detail:String(r?.message||r?.error||`HTTP ${resp.status}`)},502)}
+ const cashiId=`JSV-${o.id}`, resp=await fetch(URL,{method:"POST",headers:{"x-api-key":env("CASHI_API_KEY"),"Content-Type":"application/json"},body:JSON.stringify({amount:Number(o.amount_idr),order_id:cashiId,kode_channel:"QRIS_CUSTOM"})});
+ const raw=await resp.text();
+ let r:any;
+ try { r=JSON.parse(raw); } catch { r={raw_response:raw.slice(0,500)}; }
+ if(!resp.ok||r?.success!==true){
+  console.error("Cashi create rejected",JSON.stringify({http_status:resp.status,success:r?.success,message:r?.message,error:r?.error,response_preview:typeof r?.raw_response==="string"?r.raw_response.slice(0,300):undefined}));
+  return json({error:"CASHI_CREATE_PAYMENT_FAILED",detail:String(r?.message||r?.error||`HTTP ${resp.status}`)},502);
+ }
  const amount=Number(r.amount??o.amount_idr), qr=r.qrUrl?String(r.qrUrl):null, checkout=r.checkout_url?String(r.checkout_url):null;
  if(!Number.isFinite(amount)||amount!==Number(o.amount_idr))return json({error:"CASHI_AMOUNT_MISMATCH",expected_amount:o.amount_idr,provider_amount:r.amount??null},502);
  if(!qr&&!checkout)return json({error:"CASHI_QR_OR_CHECKOUT_MISSING"},502);
- if([qr,checkout].some(u=>u&&!/^https:\/\//i.test(u)))return json({error:"CASHI_RETURNED_INVALID_URL"},502);
+ const validQr=(value:string|null)=>!value||/^https:\/\//i.test(value)||/^data:image\/(?:png|jpeg|jpg);base64,[A-Za-z0-9+/=\r\n]+$/i.test(value);
+ if(!validQr(qr)||(checkout&&!/^https:\/\//i.test(checkout)))return json({error:"CASHI_RETURNED_INVALID_URL"},502);
  const {error:se}=await service.from("jsvidey_payment_orders").update({cashi_order_id:String(r.orderId||cashiId),cashi_qr_url:qr,cashi_checkout_url:checkout,cashi_provider_status:"PENDING",cashi_provider_payload:r,updated_at:new Date().toISOString()}).eq("id",o.id).eq("user_id",uid);
  if(se){console.error(se);return json({error:"CASHI_INVOICE_SAVE_FAILED"},500)}
  return json({success:true,order_id:o.id,cashi_order_id:String(r.orderId||cashiId),amount,fee:Number(r.fee||0),qr_url:qr,checkout_url:checkout,status:"PENDING"});
