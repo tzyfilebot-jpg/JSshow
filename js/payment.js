@@ -25,15 +25,31 @@ const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
    let link=$('cashCheckoutLink');
    if(checkout){link.href=checkout;link.hidden=false}else{link.hidden=true;link.removeAttribute('href')}
    $('payAmount').textContent=fmt(Number(data.amount||plan.amount));
-   qrCreated=!!(qr||checkout);$('retryCashi').hidden=qrCreated;
+   qrCreated=!!(qr||checkout);$('retryCashi').hidden=qrCreated||!!data.recovery_required;
  }
  async function createCashiInvoice(id){
    $('retryCashi').disabled=true;message('Menghubungkan ke Cashi dan membuat QR nominal otomatis…',false,'paymentStatus');
    const {data,error}=await db.functions.invoke('jsvidey-cashi-create-payment',{body:{order_id:id}});
    $('retryCashi').disabled=false;
-   if(error){let detail=error.message||'Gagal membuat QR Cashi.';if(error.context?.json?.detail)detail+=' '+error.context.json.detail;message(detail+' Pastikan Edge Function dan secret Cashi sudah dipasang.',true,'paymentStatus');$('retryCashi').hidden=false;return false}
-   if(!data||data.error){message((data?.error||'Gagal membuat pembayaran')+(data?.detail?': '+data.detail:''),true,'paymentStatus');$('retryCashi').hidden=false;return false}
-   renderInvoice(data);message('QR Cashi dibuat. Bayar tepat sesuai nominal yang ditampilkan.',false,'paymentStatus');return true;
+   if(error){
+     const payload=error.context?.json||error.context?.body||{};
+     let detail=payload.detail||error.message||'Gagal membuat QR Cashi.';
+     if(payload.error==='CASHI_ORDER_EXISTS_NO_CHECKOUT'||/DUPLICATE_ORDER_ID|duplicate order_id/i.test(detail)){
+       detail='Cashi sudah memiliki transaksi untuk pesanan ini, tetapi QR/checkout belum berhasil dipulihkan. Jangan membuat transaksi baru. Hubungi admin/Cashi untuk memulihkan transaksi yang sama.';
+       $('retryCashi').hidden=true;
+     } else $('retryCashi').hidden=false;
+     message(detail,true,'paymentStatus');return false;
+   }
+   if(!data||data.error){
+     const detail=data?.detail||data?.error||'Gagal membuat pembayaran';
+     message(detail,true,'paymentStatus');
+     $('retryCashi').hidden=data?.error==='CASHI_ORDER_EXISTS_NO_CHECKOUT';
+     return false;
+   }
+   renderInvoice(data);
+   if(data.recovery_required) message('Transaksi lama ditemukan di Cashi, tetapi QR/checkout tidak dikirim oleh API. Jangan membuat transaksi baru; hubungi admin/Cashi untuk pemulihan checkout.',true,'paymentStatus');
+   else message(data.reused?'Transaksi Cashi lama berhasil dipulihkan. Periksa QR/tautan pembayaran di atas.':'QR Cashi dibuat. Bayar tepat sesuai nominal yang ditampilkan.',false,'paymentStatus');
+   return true;
  }
  async function init(){
    if(!window.supabase?.createClient){$('loginHint').textContent='Library Supabase tidak berhasil dimuat.';return}
