@@ -9,11 +9,17 @@ const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
  if(confirmPackage&&createOrderButton){createOrderButton.disabled=!confirmPackage.checked;confirmPackage.addEventListener('change',()=>{createOrderButton.disabled=!confirmPackage.checked;});}
  let db=null,user=null,orderId=null,qrCreated=false;
  function message(t,bad=false,target='orderMessage'){const el=$(target);if(!el)return;el.textContent=t;el.classList.toggle('error',bad)}
- function safeUrl(s){try{const u=new URL(s);return u.protocol==='https:'?u.href:''}catch(_){return''}}
+ function safeUrl(s){try{const u=new URL(String(s||''));return u.protocol==='https:'?u.href:''}catch(_){return''}}
+ function safeQrSource(s){
+   const value=String(s||'').trim();
+   // Cashi documents QRIS as a data:image/png URI; allow only safe raster image data URIs.
+   if(/^data:image\/(?:png|jpeg|jpg);base64,[A-Za-z0-9+/]+={0,2}$/i.test(value))return value;
+   return safeUrl(value);
+ }
  function showPayStage(id){$('orderStage').hidden=true;$('payStage').hidden=false;$('orderIdText').textContent=id;window.scrollTo({top:0,behavior:'smooth'})}
  function renderInvoice(data){
-   const qr=safeUrl(data.qr_url),checkout=safeUrl(data.checkout_url);
-   if(qr){const img=document.createElement('img');img.src=qr;img.alt='QR pembayaran Cashi';img.loading='eager';$('qrFrame').replaceChildren(img)}
+   const qr=safeQrSource(data.qr_url||data.qrUrl),checkout=safeUrl(data.checkout_url||data.checkoutUrl);
+   if(qr){const img=document.createElement('img');img.src=qr;img.alt='QR pembayaran Cashi';img.loading='eager';img.addEventListener('error',()=>{$('qrFrame').innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-triangle-exclamation"></i><b>QR gagal ditampilkan</b><small>Gunakan tombol Buka pembayaran Cashi jika tersedia, atau coba buat QR lagi.</small></div>';qrCreated=!!checkout;$('retryCashi').hidden=qrCreated;},{once:true});$('qrFrame').replaceChildren(img)}
    else if(checkout){$('qrFrame').innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-arrow-up-right-from-square"></i><b>QR tidak disediakan</b><small>Lanjutkan melalui halaman pembayaran Cashi.</small></div>'}
    else $('qrFrame').innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-triangle-exclamation"></i><b>QR belum diterima</b><small>Tekan coba lagi atau hubungi admin.</small></div>';
    let link=$('cashCheckoutLink');
