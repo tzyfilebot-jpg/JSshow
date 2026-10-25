@@ -192,3 +192,18 @@ video{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;bac
 .social-notice[data-kind="error"] .social-toast-icon{background:#49252c;color:#ff9ca7}
 .social-toast-copy{display:grid;gap:3px;min-width:0}.social-toast-message{overflow-wrap:anywhere}.social-toast-link{color:#71d0ff;text-decoration:underline;overflow-wrap:anywhere;font-size:.78rem}
 @media(max-width:520px){.social-notice{bottom:calc(14px + env(safe-area-inset-bottom));padding:11px 12px;border-radius:14px}.watch-access-state{padding:24px 16px!important}.watch-access-cta,.watch-access-secondary{flex:1;min-width:120px}}
+
+/* Final Watch corrections: visible access CTA, thumbnail fallback and six actions. */
+.watch-access-notice[hidden]{display:none!important}
+.watch-access-notice{display:flex;flex-direction:column;align-items:center;gap:12px;margin:18px 0 4px;padding:20px 16px;text-align:center;border:1px solid #355477;border-radius:18px;background:radial-gradient(circle at top,#19365a 0,#0b1423 70%);color:#eef5ff;box-shadow:0 12px 32px #0003}
+.watch-access-notice>strong{font-size:clamp(1rem,3.8vw,1.3rem);line-height:1.35}
+.watch-access-notice>p{margin:0!important;max-width:440px;color:#b6c7df!important;font-size:.9rem!important;line-height:1.55}
+.watch-access-thumbnail{display:block;width:min(100%,480px);max-height:240px;aspect-ratio:16/9;object-fit:cover;border-radius:13px;border:1px solid #31496b;background:#060b13}
+.watch-access-notice .watch-access-icon{flex:0 0 auto}
+.watch-access-notice .watch-access-actions{width:min(100%,420px)}
+.related-placeholder{display:grid;place-items:center;width:100%;height:100%;min-height:100px;color:#56c8ff;font-size:1.7rem;background:radial-gradient(circle at center,#1a2c48,#0b1220)}
+.related-thumb{overflow:hidden;display:block}
+.related-thumb img{display:block}
+#relatedVideosButton{border-color:#2a5783;background:linear-gradient(145deg,#142944,#0b1728)}
+#relatedVideosButton i{color:#7dd7ff}
+@media(max-width:620px){.watch-access-notice{padding:17px 13px}.watch-access-thumbnail{max-height:190px}.watch-access-notice .watch-access-actions{flex-direction:column;width:100%}.watch-access-notice .watch-access-cta,.watch-access-notice .watch-access-secondary{width:100%;flex:1}}
