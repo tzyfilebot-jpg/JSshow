@@ -65,11 +65,11 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
    const m=classify(url);
    window.__sourceVideoUrl=url;
    const titleEl=$('videoTitle');if(titleEl)titleEl.textContent=title||'Video Jsvidey';
-   if(m.direct){if(ratioTools)ratioTools.hidden=true;frame.classList.remove('portrait','landscape');iframe.removeAttribute('src');frame.hidden=true;player.src=m.embed;player.hidden=false;player.controls=true;player.setAttribute('controls','');player.onloadedmetadata=()=>{if(player.videoWidth&&player.videoHeight){player.style.aspectRatio=player.videoWidth+'/'+player.videoHeight;}};}
+   if(m.direct){if(ratioTools)ratioTools.hidden=true;frame.classList.remove('portrait','landscape');iframe.removeAttribute('src');frame.hidden=true;player.onerror=()=>{const msg='Video gagal dimuat. Periksa apakah link masih aktif dan dapat diakses publik. Untuk MP4, gunakan URL file langsung yang mengembalikan video/mp4; jika link berasal dari Videy, coba buka link tersebut di tab baru untuk memastikan sumbernya masih tersedia.';if(state){state.hidden=false;state.classList.add('error');state.textContent=msg;}const status=$('statusText');if(status)status.textContent=msg;};player.onloadeddata=()=>{if(state)state.hidden=true;};player.src=m.embed;player.hidden=false;player.controls=true;player.setAttribute('controls','');player.setAttribute('playsinline','');player.onloadedmetadata=()=>{if(player.videoWidth&&player.videoHeight){player.style.aspectRatio=player.videoWidth+'/'+player.videoHeight;}};}
    else{player.pause();player.removeAttribute('src');player.load();player.hidden=true;iframe.src=m.embed;frame.hidden=false;const isDrive=m.provider==='Google Drive';if(ratioTools)ratioTools.hidden=!isDrive;setRatio('landscape');}
    if(state)state.hidden=true;
    const status=$('statusText');
-   if(status)status.textContent='Media: '+m.provider+'. Tombol Download tersedia di bagian bawah video jika penyedia mendukungnya.';
+   if(status)status.textContent=m.provider==='Google Drive'?'Media: Google Drive. Pastikan file disetel “Siapa saja yang memiliki link” sebagai Viewer; file privat atau yang dibatasi organisasi tidak dapat diputar melalui embed.':'Media: '+m.provider+'. Tombol Download tersedia di bagian bawah video jika penyedia mendukungnya.';
    const downloadPageButton=$('downloadPageButton');if(downloadPageButton)downloadPageButton.href='/download.html?id='+encodeURIComponent(videoId);
  }
  if(!videoId&&!videoSlug){fail('Link video tidak ditemukan. Buka tautan video yang valid.');return;}
