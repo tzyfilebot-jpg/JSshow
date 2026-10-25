@@ -15,7 +15,8 @@ try{const body=await req.json().catch(()=>({})),id=String(body.order_id||"").tri
  if(!o.cashi_order_id)return json({error:"CASHI_PAYMENT_NOT_CREATED"},409);
  const resp=await fetch(`${URL}/${encodeURIComponent(o.cashi_order_id)}`,{headers:{"x-api-key":env("CASHI_API_KEY")}}),r=await resp.json().catch(()=>({}));
  if(!resp.ok||r?.success!==true){console.error("Cashi status rejected",r);return json({error:"CASHI_STATUS_CHECK_FAILED",detail:String(r?.message||r?.error||`HTTP ${resp.status}`)},502)}
- const status=String(r.status||"").toUpperCase(),settled=status==="SETTLED";
+ const providerData=r?.data&&typeof r.data==="object"?r.data:r;
+ const status=String(providerData.status||r.status||providerData.payment_status||"").toUpperCase(),settled=["SETTLED","PAID","SUCCESS","COMPLETED"].includes(status);
  const patch:any={cashi_provider_status:status||"PENDING",cashi_provider_payload:r,updated_at:new Date().toISOString()};
  if(settled){patch.status="pending_review";patch.cashi_paid_at=new Date().toISOString()}
  const {error:ue}=await service.from("jsvidey_payment_orders").update(patch).eq("id",o.id);if(ue){console.error(ue);return json({error:"PAYMENT_STATUS_SAVE_FAILED"},500)}
