@@ -25,16 +25,16 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
  if(entryPlay)entryPlay.addEventListener('click',async()=>{
    if(playStarting||!pendingVideo)return;
    playStarting=true; entryPlay.disabled=true;
-   if(entryLoading)entryLoading.hidden=false;
-   entryPlay.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Memuat…';
-   await new Promise(resolve=>setTimeout(resolve,3000));
+   if(entryLoading)entryLoading.hidden=true;
+   entryPlay.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Membuka…';
+   // Do not await a countdown before opening the player: mobile browsers can
+   // discard the user's playback gesture after an async delay.
    const selected=pendingVideo;
    closeEntryNotice();
    try {
      showEmbed(selected.video_url,selected.title);
      if(player && !player.hidden) {
-       // Explicitly start a fresh media load. Some mobile browsers don't start
-       // playback automatically after an async delay, so keep native controls visible.
+       // Keep playback initiation in the original click gesture for mobile Safari.
        player.load();
        try {
          await player.play();
@@ -83,7 +83,7 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
      if(!id||!/^\d+$/.test(id))throw new Error('Link Vimeo tidak dikenali.');
      provider='Vimeo';embed='https://player.vimeo.com/video/'+id;
    }
-   const direct=/\.(mp4|webm|mov|m4v|ogv|ogg|m3u8)(?:$)/i.test(path);
+   const direct=/\.(mp4|webm|mov|m4v|ogv|ogg|m3u8)$/i.test(path);
    return {embed,provider,direct};
  }
  let embedWatchdog=null;
