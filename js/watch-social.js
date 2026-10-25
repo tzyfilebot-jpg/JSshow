@@ -3,6 +3,20 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 (() => {
   const $ = id => document.getElementById(id);
+  function normalizeThumbnail(raw) {
+    const value = String(raw || '').trim();
+    if (!value) return '';
+    try {
+      const url = new URL(value);
+      if (!/^https?:$/.test(url.protocol)) return '';
+      const host = url.hostname.toLowerCase();
+      if (host === 'drive.google.com' || host === 'docs.google.com' || host === 'drive.usercontent.google.com') {
+        const id = (url.pathname.match(/\/file\/d\/([^/]+)/) || [])[1] || url.searchParams.get('id');
+        if (id) return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w1200';
+      }
+      return value;
+    } catch (_) { return ''; }
+  }
   const withTimeout = (promise, ms = 12000, message = 'Permintaan ke Supabase terlalu lama.') =>
     Promise.race([
       Promise.resolve(promise),
@@ -19,7 +33,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       const { data, error } = await withTimeout(
         db.auth.getUser(), 8000, 'Pemeriksaan status login terlalu lama. Periksa koneksi lalu coba lagi.'
       );
-      if (error) throw error;
+      // Supabase may return AuthSessionMissingError when the visitor is simply logged out.
+      // Treat that expected state as signed-out, not as a system failure.
+      if (error && !/auth session missing|session missing|no session/i.test(String(error.message || error.name || ''))) throw error;
       if (data?.user) {
         currentUser = data.user;
         return data.user;
@@ -507,12 +523,14 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         card.href = href;
         const thumb = document.createElement('div');
         thumb.className = 'related-thumb';
-        if (row.thumbnail_url) {
+        const thumbnailUrl = normalizeThumbnail(row.thumbnail_url || row.thumbnail || row.thumbnailUrl);
+        if (thumbnailUrl) {
           const img = document.createElement('img');
-          img.src = row.thumbnail_url;
+          img.src = thumbnailUrl;
           img.alt = '';
           img.loading = 'lazy';
           img.referrerPolicy = 'no-referrer';
+          img.onerror = () => { img.remove(); thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>'; };
           thumb.append(img);
         } else {
           thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>';

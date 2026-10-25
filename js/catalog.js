@@ -6,6 +6,17 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
  const params=new URLSearchParams(location.search),rawTerm=(params.get('q')||'').trim(),term=rawTerm.toLowerCase(),page=document.body.dataset.page||'',category=(params.get('category')||'').trim();
  let isVip=false,isPremium=false,isLoggedIn=false;
  const tags=['Trending','Komedi','Musik','Gaming','Olahraga','Hiburan','Edukasi','Teknologi','Lifestyle','18+'];
+ const normalizeThumbnail=raw=>{
+   const value=String(raw||'').trim();if(!value)return '';
+   try{const u=new URL(value);if(!/^https?:$/.test(u.protocol))return '';
+     const host=u.hostname.toLowerCase();
+     if(host==='drive.google.com'||host==='docs.google.com'||host==='drive.usercontent.google.com'){
+       const id=(u.pathname.match(/\/file\/d\/([^/]+)/)||[])[1]||u.searchParams.get('id');
+       if(id)return 'https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w1200';
+     }
+     return value;
+   }catch(_){return ''}
+ };
  const escapeHTML=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function tier(v){
    const a=String(v.audience||v.access_level||v.membership||'').toLowerCase();
@@ -19,7 +30,8 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    const cat=v.category||tags[i%tags.length], hue=[345,18,270,195,32,145][i%6];
    const date=v.created_at?new Date(v.created_at):null;
    const when=date&&!isNaN(date)?new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'}).format(date):'Video pilihan';
-   const thumb=v.thumbnail_url?`<img src="${escapeHTML(v.thumbnail_url)}" alt="Thumbnail ${title}" loading="lazy" onerror="this.style.display='none'">`:"";
+   const thumbUrl=normalizeThumbnail(v.thumbnail_url||v.thumbnail||v.thumbnailUrl);
+   const thumb=thumbUrl?`<img src="${escapeHTML(thumbUrl)}" alt="Thumbnail ${title}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:"";
    const t=tier(v),premiumOnly=t==='premium',vipOnly=t==='vip',locked=(vipOnly&&!isVip)||(premiumOnly&&!isPremium)||(t==='basic'&&!isLoggedIn);
    const destination=locked?(premiumOnly?'vip.html?plan=premium':'vip.html?plan=vip'):link;
    const tierLabel=premiumOnly?'PREMIUM':vipOnly?'VIP':t==='basic'?'MEMBER':'BASIC';
@@ -60,11 +72,11 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    }
    // Keep locked VIP/Premium cards visible so users can see the tier and upgrade path.
    if(term)videos=videos.filter(v=>(v.title||'').toLowerCase().includes(term)||(v.category||'').toLowerCase().includes(term));
-   if(page==='categories'){
+   if(page==='categories'||page==='home'){
      const categoryNames=[...new Set((videos||[]).map(v=>String(v.category||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'id'));
-     const nav=document.querySelector('.category-filter-list');
+     const nav=document.querySelector('.category-filter-list')||document.querySelector('.category-strip');
      if(nav){
-       const allLink='<a class="category-chip" href="categories.html"><i class="fa-solid fa-layer-group"></i> Semua kategori</a>';
+       const allLink='<a class="category-chip active" href="categories.html"><i class="fa-solid fa-layer-group"></i> Semua kategori</a>'+(page==='home'?'<a class="category-chip" href="top-10-videos.html"><i class="fa-solid fa-chart-line"></i> Top 10</a>':'');
        const icons={'trending':'fa-fire','komedi':'fa-face-laugh','musik':'fa-music','gaming':'fa-gamepad','olahraga':'fa-futbol','hiburan':'fa-clapperboard','edukasi':'fa-graduation-cap','teknologi':'fa-microchip','18+':'fa-shield-halved'};
        nav.innerHTML=allLink+categoryNames.map(name=>{const icon=icons[name.toLowerCase()]||'fa-tag';return `<a class="category-chip" href="categories.html?category=${encodeURIComponent(name)}"><i class="fa-solid ${icon}"></i> ${escapeHTML(name)}</a>`}).join('');
        nav.querySelectorAll('.category-chip').forEach(a=>{const u=new URL(a.href,location.origin);a.classList.toggle('active',(u.searchParams.get('category')||'').toLowerCase()===category.toLowerCase());});

@@ -3,6 +3,22 @@ const WATCH_SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJz
 const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu lama.')=>Promise.race([Promise.resolve(promise),new Promise((_,reject)=>setTimeout(()=>reject(new Error(message)),ms))]);
 (async()=>{
  const $=id=>document.getElementById(id);
+ function normalizeThumbnail(raw){
+   const value=String(raw||'').trim(); if(!value)return '';
+   try{
+     const u=new URL(value);
+     if(!/^https?:$/.test(u.protocol))return '';
+     const host=u.hostname.toLowerCase();
+     if(host==='drive.google.com'||host==='docs.google.com'){
+       const id=(u.pathname.match(/\/file\/d\/([^/]+)/)||[])[1]||u.searchParams.get('id');
+       if(id)return 'https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w1200';
+     }
+     if(host==='drive.usercontent.google.com'){
+       const id=u.searchParams.get('id');if(id)return 'https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w1200';
+     }
+     return value;
+   }catch(_){return ''}
+ }
  let videoId=new URLSearchParams(location.search).get('id');
  const params=new URLSearchParams(location.search);
  let videoSlug=params.get('slug');
@@ -14,7 +30,7 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
  function openEntryNotice(record){
    pendingVideo=record; playStarting=false;
    if(entryTitle)entryTitle.textContent=record.title||'Video Jsvidey';
-   if(entryThumb){const thumb=record.thumbnail_url||record.thumbnail||record.thumbnailUrl||''; if(thumb){entryThumb.src=thumb;entryThumb.hidden=false;entryThumb.onerror=()=>{entryThumb.hidden=true;};}else{entryThumb.removeAttribute('src');entryThumb.hidden=true;}}
+   if(entryThumb){const thumb=normalizeThumbnail(record.thumbnail_url||record.thumbnail||record.thumbnailUrl||''); if(thumb){entryThumb.src=thumb;entryThumb.hidden=false;entryThumb.onerror=()=>{entryThumb.hidden=true;};}else{entryThumb.removeAttribute('src');entryThumb.hidden=true;}}
    if(entryLoading)entryLoading.hidden=true;
    if(entryPlay){entryPlay.disabled=false;entryPlay.innerHTML='<i class="fa-solid fa-play"></i> Play';}
    if(entryNotice)entryNotice.hidden=false;
@@ -170,8 +186,8 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
      const info=Array.isArray(access.data)?access.data[0]:access.data;
      if(info&&!info.allowed){
        const premium=String(info.audience||'').toLowerCase()==='premium';
-       const message=premium?'Video Khusus Premium, Silahkan Upgrade Status Akun.':'Video Khusus VIP & Premium, Silahkan Upgrade Status Akun.';
-       if(state){state.hidden=false;state.classList.add('error');state.innerHTML='<strong>'+message+'</strong><p><a class="btn btn-light" href="vip.html">Upgrade</a></p>';}
+       const message=premium?'Video ini khusus anggota Premium.':'Video ini tersedia untuk anggota VIP dan Premium.';
+       if(state){state.hidden=false;state.classList.add('error','premium-access-state');state.innerHTML='<div class="premium-access-icon"><i class="fa-solid fa-crown"></i></div><strong>'+message+'</strong><p>Upgrade status akun untuk membuka video ini dan menikmati akses eksklusif.</p><a class="premium-upgrade-button" href="vip.html?plan='+(premium?'premium':'vip')+'"><i class="fa-solid fa-arrow-up-right-from-square"></i> Upgrade Akun</a>';}
        const status=$('statusText');if(status)status.textContent=message;
      }else fail('Video tidak ditemukan, belum dipublikasikan, atau link belum tersimpan.');
      return;
