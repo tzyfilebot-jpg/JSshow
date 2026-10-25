@@ -16,40 +16,39 @@ const json = (body: unknown, status = 200) =>
 function normalizeCashiQr(value: unknown): string | null {
   if (value && typeof value === "object") {
     const v = value as Record<string, unknown>;
-    value = v.data_url ?? v.dataUrl ?? v.url ?? v.qrUrl ?? v.qr_url ?? v.base64 ?? v.content ?? null;
+    value = v.data_url ?? v.dataUrl ?? v.url ?? v.qrUrl ?? v.qr_url ??
+      v.base64 ?? v.content ?? v.qr ?? null;
   }
   if (typeof value !== "string") return null;
   const candidate = value.trim();
   if (!candidate) return null;
-  // Cashi may return a hosted image URL instead of an inline QR image.
+  // Match the working Showlink integration: preserve Cashi's own QR image
+  // URL/data URI, and do not try to manufacture a QR from checkout_url.
   if (/^https:\/\//i.test(candidate)) return candidate;
-
-  // Normalize data:image/* URIs. Some responses contain line breaks/spaces in
-  // base64 or whitespace around the media type, which strict regexes reject.
   if (/^data:image\//i.test(candidate)) {
     const comma = candidate.indexOf(",");
     if (comma < 0) return null;
-    const metadata = candidate.slice(0, comma).replace(/\s+/g, "").toLowerCase();
-    let payload = candidate.slice(comma + 1).trim();
-    if (/^data:image\/(?:png|jpeg|jpg|webp);base64$/.test(metadata) === false) {
-      // Accept percent-encoded image data URIs returned by some gateways.
-      if (/^data:image\/(?:svg\+xml|png|jpeg|jpg|webp);charset=utf-8$/.test(metadata) && /%[0-9a-f]{2}/i.test(payload)) return candidate;
-      return null;
+    const metadata = candidate.slice(0, comma).trim();
+    const payload = candidate.slice(comma + 1).trim();
+    if (!payload) return null;
+    if (/;base64$/i.test(metadata)) {
+      let compact = payload.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+      if (!compact || !/^[A-Za-z0-9+/]*={0,2}$/.test(compact)) return null;
+      compact = compact.replace(/=+$/, "");
+      compact += "=".repeat((4 - compact.length % 4) % 4);
+      return `${metadata},${compact}`;
     }
-    payload = payload.replace(/\s+/g, "");
-    // Accept URL-safe base64 and normalize it for HTML image rendering.
-    payload = payload.replace(/-/g, "+").replace(/_/g, "/");
-    if (!payload || !/^[A-Za-z0-9+/]*={0,2}$/.test(payload)) return null;
-    payload = payload.replace(/=+$/, "");
-    payload += "=".repeat((4 - payload.length % 4) % 4);
-    return `${metadata},${payload}`;
+    if (/%[0-9a-f]{2}/i.test(payload) || /^data:image\/svg\+xml/i.test(candidate)) {
+      return candidate;
+    }
+    return null;
   }
-
-  // Some gateways return raw base64 PNG data without a data-URI prefix.
-  const compact = candidate.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+  // Handle raw base64 image payloads if Cashi returns one without a data URI.
+  let compact = candidate.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
   if (compact.length > 100 && /^[A-Za-z0-9+/]+={0,2}$/.test(compact)) {
-    const payload = compact.replace(/=+$/, "");
-    return `data:image/png;base64,${payload}${"=".repeat((4 - payload.length % 4) % 4)}`;
+    compact = compact.replace(/=+$/, "");
+    compact += "=".repeat((4 - compact.length % 4) % 4);
+    return `data:image/png;base64,${compact}`;
   }
   return null;
 }
@@ -128,7 +127,7 @@ Deno.serve(async (req) => {
     // JSshow uses jsvidey_payment_orders (not Showlink's orders/payments tables).
     const { data: order, error: orderError } = await service
       .from("jsvidey_payment_orders")
-      .select("id,user_id,package,amount_idr,status,cashi_order_id,cashi_qr_url,cashi_checkout_url,cashi_provider_status")
+      .select("id,user_id,package,amount_idr,status,cashi_order_id,cashi_qr_url,cashi_checkout_url,cashi_provider_status,cashi_provider_payload")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -147,14 +146,43 @@ Deno.serve(async (req) => {
     }
 
     if (order.cashi_order_id && (order.cashi_qr_url || order.cashi_checkout_url)) {
+      // Older versions could save checkout_url but discard qrUrl because the
+      // image MIME type was too strictly validated. Recover it from the
+      // original Cashi response saved with the order.
+      let savedQr = order.cashi_qr_url || null;
+      if (!savedQr) {
+        const savedPayload = order.cashi_provider_payload && typeof order.cashi_provider_payload === "object"
+          ? order.cashi_provider_payload : {};
+        const savedData = savedPayload.data && typeof savedPayload.data === "object"
+          ? savedPayload.data : savedPayload;
+        const savedPayment = savedData.payment && typeof savedData.payment === "object"
+          ? savedData.payment : {};
+        const savedQrValue = savedData.qrUrl ?? savedData.qr_url ?? savedData.qr_url_base64 ??
+          savedData.qr_image_url ?? savedData.qrImageUrl ?? savedData.qr_image ??
+          savedData.qrImage ?? savedData.qr_code_url ?? savedData.qrCodeUrl ??
+          savedData.qr_data_url ?? savedData.qrDataUrl ?? savedData.qr_string ??
+          savedData.qrString ?? savedData.qr_content ?? savedData.qrContent ??
+          savedData.qr_code ?? savedData.qrCode ?? savedData.qris ?? savedData.qr ??
+          savedPayment.qrUrl ?? savedPayment.qr_url ?? savedPayment.qr_image_url ??
+          savedPayment.qr_code_url ?? savedPayment.qrCodeUrl ?? savedPayment.qr_content ??
+          savedPayment.qrContent ?? null;
+        savedQr = normalizeCashiQr(savedQrValue);
+        if (savedQr) {
+          const { error: qrSaveError } = await service.from("jsvidey_payment_orders")
+            .update({ cashi_qr_url: savedQr, updated_at: new Date().toISOString() })
+            .eq("id", order.id).eq("user_id", userId);
+          if (qrSaveError) console.error("Cashi saved QR restore failed", qrSaveError);
+        }
+      }
       return json({
         success: true,
         order_id: order.id,
         cashi_order_id: order.cashi_order_id,
         amount: Number(order.amount_idr),
-        qr_url: order.cashi_qr_url || null,
+        qr_url: savedQr,
         checkout_url: order.cashi_checkout_url || null,
         reused: true,
+        recovery_required: !savedQr && !order.cashi_checkout_url,
       });
     }
 
@@ -166,10 +194,7 @@ Deno.serve(async (req) => {
           cashi_qr_url: recovered.qr_url,
           cashi_checkout_url: recovered.checkout_url,
           cashi_provider_status: recovered.provider_status,
-          cashi_provider_payload: {
-            ...(order.cashi_provider_payload && typeof order.cashi_provider_payload === "object" ? order.cashi_provider_payload : {}),
-            recovery_response: recovered.payload,
-          },
+          cashi_provider_payload: recovered.payload,
           updated_at: new Date().toISOString(),
         }).eq("id", order.id).eq("user_id", userId);
         if (saveRecoveredError) {
