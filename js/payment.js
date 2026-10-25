@@ -32,15 +32,40 @@ const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
 
  function safeQrSource(s){
    const value=String(s||'').trim();
-   // Cashi documents QRIS as a data:image/png URI; allow only safe raster image data URIs.
-   if(/^data:image\/(?:png|jpeg|jpg);base64,[A-Za-z0-9+/]+={0,2}$/i.test(value))return value;
-   return safeUrl(value);
+   if(/^https:\/\//i.test(value))return safeUrl(value);
+   // Accept Cashi data URIs with whitespace/newlines in base64 and normalize them.
+   if(/^data:image\//i.test(value)){
+     const comma=value.indexOf(',');if(comma<0)return'';
+     const meta=value.slice(0,comma).replace(/\s+/g,'').toLowerCase();
+     if(!/^data:image\/(?:png|jpeg|jpg|webp);base64$/.test(meta))return'';
+     let payload=value.slice(comma+1).replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');
+     if(!payload||!/^[A-Za-z0-9+/]*={0,2}$/.test(payload))return'';
+     payload=payload.replace(/=+$/,'');payload+='='.repeat((4-payload.length%4)%4);
+     return meta+','+payload;
+   }
+   // The Edge Function normally converts raw base64 to a data URI, but tolerate it here too.
+   let payload=value.replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');
+   if(payload.length>100&&/^[A-Za-z0-9+/]+={0,2}$/.test(payload)){
+     payload=payload.replace(/=+$/,'');payload+='='.repeat((4-payload.length%4)%4);return'data:image/png;base64,'+payload;
+   }
+   return'';
  }
  function showPayStage(id){$('orderStage').hidden=true;$('payStage').hidden=false;$('orderIdText').textContent=id;window.scrollTo({top:0,behavior:'smooth'})}
  function renderInvoice(data){
    const qr=safeQrSource(data.qr_url||data.qrUrl),checkout=safeUrl(data.checkout_url||data.checkoutUrl);
    if(qr){const img=document.createElement('img');img.src=qr;img.alt='QR pembayaran Cashi';img.loading='eager';img.addEventListener('error',()=>{$('qrFrame').innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-triangle-exclamation"></i><b>QR gagal ditampilkan</b><small>Gunakan tombol Buka pembayaran Cashi jika tersedia, atau coba buat QR lagi.</small></div>';qrCreated=!!checkout;$('retryCashi').hidden=qrCreated;},{once:true});$('qrFrame').replaceChildren(img)}
-   else if(checkout){$('qrFrame').innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-arrow-up-right-from-square"></i><b>QR tidak disediakan</b><small>Lanjutkan melalui halaman pembayaran Cashi.</small></div>'}
+   else if(checkout){
+     // Cashi returned a checkout link but no usable native QR. Render a QR code
+     // that encodes the checkout URL, so scanning it opens Cashi's payment page.
+     const wrap=document.createElement('div');wrap.className='generated-checkout-qr';
+     const img=document.createElement('img');
+     img.alt='QR untuk membuka halaman pembayaran Cashi';img.loading='eager';
+     img.width=300;img.height=300;
+     img.src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=png&data='+encodeURIComponent(checkout);
+     const caption=document.createElement('small');caption.textContent='QR ini membuka halaman pembayaran Cashi. Pastikan nominal dan pesanan benar sebelum membayar.';
+     img.addEventListener('error',()=>{wrap.innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-arrow-up-right-from-square"></i><b>QR tidak dapat dimuat</b><small>Gunakan tombol Buka pembayaran Cashi di bawah.</small></div>'},{once:true});
+     wrap.append(img,caption);$('qrFrame').replaceChildren(wrap);
+   }
    else $('qrFrame').innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-triangle-exclamation"></i><b>QR belum diterima</b><small>Tekan coba lagi atau hubungi admin.</small></div>';
    let link=$('cashCheckoutLink');
    if(checkout){link.href=checkout;link.hidden=false}else{link.hidden=true;link.removeAttribute('href')}
