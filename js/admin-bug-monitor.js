@@ -1,4 +1,4 @@
-/* Admin-only per-page diagnostic monitor. Logs stay in this browser; no visitor telemetry is uploaded. */
+/* Admin-only diagnostic monitor. Captures the admin panel automatically; other pages require Bug Reader to be enabled. */
 (() => {
   'use strict';
   const LOG_KEY = 'jsvidey_admin_bug_logs_v1';
@@ -157,10 +157,12 @@
       if (result.error || !result.data) return;
       const controls = result.data.page_controls || {};
       const rule = controls[pageKey] || (pageKey.startsWith('category:') ? controls.categories : null);
-      if (!rule?.bug_reader_enabled) return;
+      // Always capture the admin console itself; public/member pages remain opt-in.
+      if (pageKey !== 'admin' && !rule?.bug_reader_enabled) return;
       diagnosticDb = db;
       active = true;
-      createUI();
+      // The admin page already has a full Bug Monitor tab; avoid adding a duplicate floating panel there.
+      if (pageKey !== 'admin') createUI();
       const buffered = buffer.splice(0);
       if (buffered.length) {
         const rows = getStored().concat(buffered);
@@ -168,7 +170,7 @@
         for (const entry of buffered) diagnosticDb.from('jsvidey_admin_bug_logs').insert({page:entry.page||pageKey,level:entry.level||'ERROR',message:String(entry.message||'').slice(0,1400),source:entry.source||null,line:Number(entry.line)||null,column_no:Number(entry.column)||null}).then(()=>{}).catch(()=>{});
       }
       render();
-      setStatus('Pemantauan aktif. Error yang terjadi akan dicatat pada laporan lokal.');
+      setStatus(pageKey === 'admin' ? 'Pemantauan panel admin aktif. Error akan dikirim ke Bug Monitor.' : 'Pemantauan aktif. Error akan dicatat di laporan bug.');
     } catch (_) {
       // Diagnostic tooling must never interfere with the page it observes.
     }
