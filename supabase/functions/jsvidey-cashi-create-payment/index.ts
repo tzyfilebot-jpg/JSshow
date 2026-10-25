@@ -74,7 +74,7 @@ async function recoverExistingCashiOrder(orderId: string, amount: number) {
     }
     const payload = result?.data && typeof result.data === "object" ? result.data : result;
     const nestedPayment = payload.payment && typeof payload.payment === "object" ? payload.payment : {};
-    const qr = payload.qrUrl ?? payload.qr_url ?? payload.qr_url_base64 ?? payload.qr_image_url ?? payload.qr_code_url ?? payload.qr_data_url ?? payload.qr ?? nestedPayment.qrUrl ?? nestedPayment.qr_url ?? nestedPayment.qr_code_url ?? result?.qrUrl ?? result?.qr_url ?? result?.qr_code_url ?? null;
+    const qr = payload.qrUrl ?? payload.qr_url ?? payload.qr_url_base64 ?? payload.qr_image_url ?? payload.qrImageUrl ?? payload.qr_image ?? payload.qrImage ?? payload.qr_code_url ?? payload.qrCodeUrl ?? payload.qr_data_url ?? payload.qrDataUrl ?? payload.qr_string ?? payload.qrString ?? payload.qr_content ?? payload.qrContent ?? payload.qr_code ?? payload.qrCode ?? payload.qris ?? payload.qr ?? nestedPayment.qrUrl ?? nestedPayment.qr_url ?? nestedPayment.qr_image_url ?? nestedPayment.qr_code_url ?? nestedPayment.qrCodeUrl ?? nestedPayment.qr_content ?? nestedPayment.qrContent ?? result?.qrUrl ?? result?.qr_url ?? result?.qr_image_url ?? result?.qrImageUrl ?? result?.qr_code_url ?? result?.qrCodeUrl ?? result?.qr_content ?? result?.qrContent ?? null;
     const checkout = payload.checkout_url ?? payload.checkoutUrl ?? payload.payment_url ?? payload.paymentUrl ?? nestedPayment.checkout_url ?? nestedPayment.checkoutUrl ?? result?.checkout_url ?? result?.checkoutUrl ?? null;
     const qrUrl = normalizeCashiQr(qr);
     const checkoutCandidate = checkout ? String(checkout).trim() : null;
@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
     const providerOrderId = String(providerData.orderId || providerData.order_id || result.orderId || result.order_id || cashiOrderId);
     const finalAmount = Number(providerData.amount ?? result.amount ?? amount);
     const nestedPayment = providerData.payment && typeof providerData.payment === "object" ? providerData.payment : {};
-    const qrValue = providerData.qrUrl ?? providerData.qr_url ?? providerData.qr_url_base64 ?? providerData.qr_image_url ?? providerData.qr_code_url ?? providerData.qr_data_url ?? providerData.qr ?? nestedPayment.qrUrl ?? nestedPayment.qr_url ?? nestedPayment.qr_code_url ?? result.qrUrl ?? result.qr_url ?? result.qr_code_url ?? null;
+    const qrValue = providerData.qrUrl ?? providerData.qr_url ?? providerData.qr_url_base64 ?? providerData.qr_image_url ?? providerData.qrImageUrl ?? providerData.qr_image ?? providerData.qrImage ?? providerData.qr_code_url ?? providerData.qrCodeUrl ?? providerData.qr_data_url ?? providerData.qrDataUrl ?? providerData.qr_string ?? providerData.qrString ?? providerData.qr_content ?? providerData.qrContent ?? providerData.qr_code ?? providerData.qrCode ?? providerData.qris ?? providerData.qr ?? nestedPayment.qrUrl ?? nestedPayment.qr_url ?? nestedPayment.qr_image_url ?? nestedPayment.qr_code_url ?? nestedPayment.qrCodeUrl ?? nestedPayment.qr_content ?? nestedPayment.qrContent ?? result.qrUrl ?? result.qr_url ?? result.qr_image_url ?? result.qrImageUrl ?? result.qr_code_url ?? result.qrCodeUrl ?? result.qr_content ?? result.qrContent ?? null;
     const checkoutValue = providerData.checkout_url ?? providerData.checkoutUrl ?? providerData.payment_url ?? providerData.paymentUrl ?? nestedPayment.checkout_url ?? nestedPayment.checkoutUrl ?? result.checkout_url ?? result.checkoutUrl ?? null;
     let qrUrl = normalizeCashiQr(qrValue);
     const checkoutCandidate = checkoutValue ? String(checkoutValue).trim() : null;
@@ -285,7 +285,7 @@ Deno.serve(async (req) => {
       const qrWasReturned = qrValue !== null && qrValue !== undefined && String(qrValue).trim() !== "";
       console.error("Cashi create-order returned no renderable QR/checkout", {
         providerFields: Object.keys(providerData || {}),
-        qrField: qrValue == null ? null : (typeof qrValue === "string" ? qrValue.slice(0, 40).replace(/[^a-zA-Z0-9:;/+._-]/g, "?") : typeof qrValue),
+        qrField: qrValue == null ? null : (typeof qrValue === "string" ? qrValue.slice(0, 24).replace(/[^a-zA-Z0-9:;/+._-]/g, "?") : typeof qrValue),
         qrLength: typeof qrValue === "string" ? qrValue.length : null,
         checkoutPresent: Boolean(checkoutValue),
         providerOrderId,
