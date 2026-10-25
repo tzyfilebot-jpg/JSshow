@@ -92,17 +92,21 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
    window.__sourceVideoUrl=url;
    const titleEl=$('videoTitle');if(titleEl)titleEl.textContent=title||'Video Jsvidey';
    const status=$('statusText');
+   // Exactly one renderer is active at a time. Keep the loading message as an
+   // overlay, not as a separate block above the media.
+   if(state){state.hidden=false;state.classList.remove('error');state.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i><span>Memuat pemutar '+m.provider+'…</span>';}
    if(m.direct){
      if(ratioTools)ratioTools.hidden=true;
      frame.classList.remove('portrait','landscape');
      iframe.removeAttribute('src');frame.hidden=true;
-     player.pause();player.removeAttribute('src');player.load();
+     player.pause();player.removeAttribute('src');player.hidden=false;player.controls=true;player.setAttribute('controls','');player.setAttribute('playsinline','');player.load();
      player.onerror=()=>{
        const msg='Video gagal dimuat di pemutar JSSHOW. Pastikan URL MP4 aktif dan penyedia mengizinkan pemutaran dari website lain.';
        if(state){state.hidden=false;state.classList.add('error');state.textContent=msg;}
        const status=$('statusText');if(status)status.textContent=msg;
      };
      player.onloadeddata=()=>{if(state){state.hidden=true;state.classList.remove('error');}};
+     player.oncanplay=()=>{if(state){state.hidden=true;state.classList.remove('error');}};
      player.onloadedmetadata=()=>{
        if(player.videoWidth&&player.videoHeight)player.style.aspectRatio=player.videoWidth+'/'+player.videoHeight;
      };
@@ -126,7 +130,6 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
      };
      iframe.src=m.embed;frame.hidden=false;
      const isDrive=m.provider==='Google Drive';if(ratioTools)ratioTools.hidden=!isDrive;setRatio('landscape');
-     if(state){state.hidden=false;state.classList.remove('error');state.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i><span>Memuat pemutar '+m.provider+'…</span>';}
      // Avoid an endless spinner when a provider blocks iframe loading silently.
      embedWatchdog=setTimeout(()=>{
        embedWatchdog=null;
