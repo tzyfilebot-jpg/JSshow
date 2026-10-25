@@ -1,9 +1,9 @@
 const PAYMENT_SUPABASE_URL='https://ordvxiydkxbtahjpseph.supabase.co';
 const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yZHZ4aXlka3hidGFoanBzZXBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MDM3MjMsImV4cCI6MjEwODE3OTcyM30.PCruI7EeLyagV_PMyCd57s3N9oYcL41k-fEgwE8G60E';
 (function(){
- const plans={vip1:{label:'VIP 1 Hari',amount:20000},vip3:{label:'VIP 3 Hari',amount:35000},vip5:{label:'VIP 5 Hari',amount:45000},vip7:{label:'VIP 7 Hari',amount:50000},premium_monthly:{label:'PREMIUM 1 Bulan',amount:100000},premium_permanent:{label:'PREMIUM Permanen',amount:250000}};
+ const plans={vip1:{label:'VIP 1 Hari',amount:20000},vip3:{label:'VIP 3 Hari',amount:35000},vip5:{label:'VIP 5 Hari',amount:45000},vip7:{label:'VIP 7 Hari',amount:50000},premium_monthly:{label:'PREMIUM 1 Bulan',amount:100000,package:'premium_monthly'},premium_permanent:{label:'PREMIUM Permanen',amount:250000,package:'premium_permanent'}};
  const $=id=>document.getElementById(id),fmt=n=>'Rp'+new Intl.NumberFormat('id-ID').format(n);
- const params=new URLSearchParams(location.search),key=params.get('plan')||'vip1',plan=plans[key]||plans.vip1;
+ const params=new URLSearchParams(location.search),key=params.get('plan')||'vip1',plan=plans[key]||plans.vip1,packageKey=plan.package||key;
  $('orderPlan').textContent=plan.label;$('orderAmount').textContent=fmt(plan.amount);$('payPlan').textContent=plan.label;$('payAmount').textContent=fmt(plan.amount);
  const confirmPackage=$('confirmPackage'),createOrderButton=$('createOrder');
  if(confirmPackage&&createOrderButton){createOrderButton.disabled=!confirmPackage.checked;confirmPackage.addEventListener('change',()=>{createOrderButton.disabled=!confirmPackage.checked;});}
@@ -66,29 +66,18 @@ const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
      const img=document.createElement('img');img.src=qr;img.alt='QR pembayaran Cashi';img.loading='eager';
      img.addEventListener('error',()=>{
        frame.innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-triangle-exclamation"></i><b>QR Cashi tidak dapat dibaca</b><small>Periksa kembali status pesanan atau hubungi dukungan pembayaran.</small></div>';
-       if(checkout)renderCheckoutQr(frame,checkout);
      },{once:true});frame.append(img);
-   } else if(checkout) renderCheckoutQr(frame,checkout);
-   else frame.innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-triangle-exclamation"></i><b>QR belum diterima</b><small>Cashi belum mengirim QR atau tautan pembayaran. Status pesanan akan diperiksa otomatis.</small></div>';
+   } else frame.innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-triangle-exclamation"></i><b>QRIS Cashi belum diterima</b><small>QR tidak dibuat dari tautan biasa. Gunakan tombol Membayar untuk membuka checkout Cashi jika tersedia, atau coba pulihkan transaksi yang sama.</small></div>'; 
    const payNow=$('payNowButton');
    if(checkout){payNow.href=checkout;payNow.hidden=false;}else{payNow.hidden=true;payNow.removeAttribute('href');}
    $('payAmount').textContent=fmt(Number(data.amount||plan.amount));
    qrCreated=!!(qr||checkout);$('retryCashi').hidden=qrCreated||!!data.recovery_required;
  }
- function renderCheckoutQr(frame,checkout){
-   const wrap=document.createElement('div');wrap.className='generated-checkout-qr';
-   const img=document.createElement('img');img.alt='QR untuk membuka halaman pembayaran Cashi';img.loading='eager';img.width=300;img.height=300;
-   // This is a checkout-link QR fallback, not a native QRIS payload.
-   img.src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=png&data='+encodeURIComponent(checkout);
-   const caption=document.createElement('small');caption.textContent=lang()==='en'?'Fallback QR opens the secure Cashi checkout page; it is not a direct QRIS QR.':'QR alternatif ini membuka halaman checkout Cashi, bukan QRIS langsung.';
-   img.addEventListener('error',()=>{wrap.innerHTML='<div class="qr-placeholder"><i class="fa-solid fa-triangle-exclamation"></i><b>QR tidak dapat dimuat</b><small>Periksa koneksi internet lalu coba lagi.</small></div>'},{once:true});
-   wrap.append(img,caption);frame.replaceChildren(wrap);
- }
  function lang(){try{return localStorage.getItem('jsvidey-language')||'id'}catch(_){return'id'}}
  async function createCashiInvoice(id){
-   $('retryCashi').disabled=true;message('Menghubungkan ke Cashi dan membuat QR nominal otomatis…',false,'paymentStatus');
-   const {data,error}=await db.functions.invoke('jsvidey-cashi-create-payment',{body:{order_id:id}});
-   $('retryCashi').disabled=false;
+   const retry=$('retryCashi'),frame=$('qrFrame');retry.disabled=true;frame.innerHTML='<div class="qr-loading" role="status" aria-live="polite"><span class="qr-spinner" aria-hidden="true"></span><b>'+ (lang()==='en'?'Creating your Cashi payment QR…':'Sedang membuat QR pembayaran Cashi…') +'</b><small>'+ (lang()==='en'?'Please wait. The QR will match your selected package amount.':'Mohon tunggu. QR akan sesuai nominal paket yang dipilih.') +'</small></div>';message(lang()==='en'?'Connecting to Cashi and creating a payment…':'Menghubungkan ke Cashi dan membuat pembayaran…',false,'paymentStatus');
+   let result;try{result=await db.functions.invoke('jsvidey-cashi-create-payment',{body:{order_id:id}})}catch(e){result={error:e}}
+   const {data,error}=result;retry.disabled=false;
    if(error){
      let detail=await functionErrorDetail(error);
      if(/CASHI_ORDER_EXISTS_NO_CHECKOUT|DUPLICATE_ORDER_ID|duplicate order_id/i.test(detail)){
@@ -120,13 +109,12 @@ const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
  async function createOrder(){
    if(!db||!user)return;
    const btn=$('createOrder');btn.disabled=true;message('Membuat pesanan…');
-   const {data,error}=await db.rpc('jsvidey_create_payment_order',{p_package:key});
-   btn.disabled=false;
-   if(error){message('Pesanan belum dapat dibuat: '+error.message,true);return}
+   const {data,error}=await db.rpc('jsvidey_create_payment_order',{p_package:packageKey});
+   if(error){btn.disabled=false;message('Pesanan belum dapat dibuat: '+error.message,true);return}
    orderId=typeof data==='string'?data:(data?.id||data?.order_id||data?.orderId);
    if(!orderId){message('ID pesanan tidak diterima. Hubungi admin sebelum membayar.',true);return}
    showPayStage(orderId);
-   await createCashiInvoice(orderId);startAutoCheck();
+   await createCashiInvoice(orderId);startAutoCheck();btn.disabled=false;
  }
  async function checkPayment(silent=false){
    if(!db||!orderId||statusBusy)return;
@@ -139,13 +127,13 @@ const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
      if(data?.error)throw new Error(data.detail||data.error);
      if(data?.status==='APPROVED'){message('Pembayaran disetujui admin. Membership sudah diproses.',false,'paymentStatus');$('submitProof').disabled=true;if(statusTimer)clearInterval(statusTimer);return}
      if(data?.status==='REJECTED'){message('Pembayaran ditolak admin. Periksa catatan admin atau hubungi admin.',true,'paymentStatus');if(statusTimer)clearInterval(statusTimer);return}
-     if(data?.paid){message('Pembayaran terdeteksi lunas oleh Cashi. Status VIP/Premium tetap menunggu verifikasi admin.',false,'paymentStatus');$('submitProof').disabled=true;if(statusTimer)clearInterval(statusTimer);}
+     if(data?.paid){message(data?.membership_activated?'Pembayaran lunas! Membership VIP/Premium sudah aktif otomatis.':'Pembayaran lunas terdeteksi. Sistem sedang menyelesaikan aktivasi membership.',false,'paymentStatus');$('submitProof').disabled=true;if(statusTimer)clearInterval(statusTimer);}
      else message('Status Cashi: '+(data?.status||'PENDING')+'. Jika baru membayar, tunggu sebentar lalu cek kembali.',false,'paymentStatus');
      const {data:row,error:rowError}=await db.from('jsvidey_payment_orders').select('status,admin_note,cashi_provider_status').eq('id',orderId).maybeSingle();
      if(rowError)throw rowError;
-     if(row?.status==='approved'){message('Pembayaran disetujui admin. Membership sudah diproses.',false,'paymentStatus');$('submitProof').disabled=true}
+     if(row?.status==='approved'){message('Pembayaran lunas dan membership VIP/Premium sudah aktif.',false,'paymentStatus');$('submitProof').disabled=true}
      else if(row?.status==='rejected')message('Pembayaran ditolak admin. '+(row.admin_note||'Hubungi admin untuk informasi.'),true,'paymentStatus');
-     else if(row?.status==='pending_review'&&row?.cashi_provider_status==='SETTLED'){message('Cashi mengonfirmasi pembayaran lunas. Pesanan menunggu verifikasi admin; membership belum aktif.',false,'paymentStatus');$('submitProof').disabled=true}
+     else if(row?.status==='pending_review'&&row?.cashi_provider_status==='SETTLED'){message('Pembayaran terkonfirmasi. Status membership sedang disinkronkan; periksa kembali sebentar lagi.',false,'paymentStatus');$('submitProof').disabled=true}
    }catch(e){if(!silent)message('Gagal mengecek pembayaran: '+(e.message||'coba lagi nanti'),true,'paymentStatus')}
    finally{if(!silent)btn.disabled=false;statusBusy=false}
  }
@@ -159,7 +147,7 @@ const PAYMENT_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
    const btn=$('submitProof');btn.disabled=true;
    const {error}=await db.rpc('jsvidey_submit_payment_proof',{p_order_id:orderId,p_proof:proof});
    if(error){btn.disabled=false;message('Gagal mengirim konfirmasi: '+error.message,true,'paymentStatus');return}
-   message('Konfirmasi terkirim. Status membership tetap belum aktif sampai admin menyetujui pembayaran.',false,'paymentStatus');
+   message('Konfirmasi terkirim. Bukti manual tetap perlu diverifikasi admin; aktivasi otomatis hanya dilakukan setelah Cashi mengonfirmasi lunas.',false,'paymentStatus');
  }
  init().catch(e=>message(e.message||'Gagal memuat pembayaran.',true));
 })();
