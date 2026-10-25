@@ -8,6 +8,7 @@
   let active = false;
   let pageKey = '';
   let ui = null;
+  let diagnosticDb = null;
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const safe = value => String(value ?? '')
@@ -41,6 +42,9 @@
     const rows = getStored();
     rows.push(entry);
     try { localStorage.setItem(LOG_KEY, JSON.stringify(rows.slice(-MAX_LOGS))); } catch (_) {}
+    if (diagnosticDb) {
+      diagnosticDb.from('jsvidey_admin_bug_logs').insert({page:entry.page||'unknown',level:['ERROR','WARN','INFO'].includes(entry.level)?entry.level:'ERROR',message:String(entry.message||'').slice(0,1400),source:entry.source||null,line:Number(entry.line)||null,column_no:Number(entry.column)||null}).then(()=>{}).catch(()=>{});
+    }
     render();
   }
   function add(level, message, source = '', line = '', column = '') {
@@ -154,12 +158,14 @@
       const controls = result.data.page_controls || {};
       const rule = controls[pageKey] || (pageKey.startsWith('category:') ? controls.categories : null);
       if (!rule?.bug_reader_enabled) return;
+      diagnosticDb = db;
       active = true;
       createUI();
       const buffered = buffer.splice(0);
       if (buffered.length) {
         const rows = getStored().concat(buffered);
         try { localStorage.setItem(LOG_KEY, JSON.stringify(rows.slice(-MAX_LOGS))); } catch (_) {}
+        for (const entry of buffered) diagnosticDb.from('jsvidey_admin_bug_logs').insert({page:entry.page||pageKey,level:entry.level||'ERROR',message:String(entry.message||'').slice(0,1400),source:entry.source||null,line:Number(entry.line)||null,column_no:Number(entry.column)||null}).then(()=>{}).catch(()=>{});
       }
       render();
       setStatus('Pemantauan aktif. Error yang terjadi akan dicatat pada laporan lokal.');
