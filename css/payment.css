@@ -2,3 +2,6 @@
 
 /* Responsive checkout polish */
 .checkout-page{width:min(920px,calc(100% - 28px));margin:clamp(20px,4vw,48px) auto 100px}.checkout-page .payment-card,.checkout-page .checkout-card,.checkout-page section{border-radius:18px}.checkout-page h1,.checkout-page h2{letter-spacing:-.025em;line-height:1.2}.checkout-page input,.checkout-page textarea,.checkout-page select{max-width:100%;box-sizing:border-box;border-radius:11px}.checkout-page button,.checkout-page .btn{min-height:44px;border-radius:11px}.checkout-page p{line-height:1.7}@media(max-width:600px){.checkout-page{width:calc(100% - 20px);margin-top:16px}.checkout-page .back-link{display:inline-flex;align-items:center;gap:8px;margin-bottom:14px}}
+
+/* Cashi QR generation state */
+.qr-loading{min-height:260px;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;color:#1e293b;padding:20px;box-sizing:border-box}.qr-spinner{width:44px;height:44px;border:4px solid #dbeafe;border-top-color:#2563eb;border-radius:50%;animation:cashi-spin .8s linear infinite}.qr-loading b{font-size:15px}.qr-loading small{max-width:290px;line-height:1.55;color:#64748b}@keyframes cashi-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.qr-spinner{animation:none}}
