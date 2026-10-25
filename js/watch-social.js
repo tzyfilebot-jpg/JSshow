@@ -16,15 +16,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   }
   async function requireLogin(actionLabel) {
     try {
+      // getSession safely returns an empty session for visitors. getUser() can
+      // surface "Auth session missing" on a perfectly normal logged-out visit.
       const { data, error } = await withTimeout(
-        db.auth.getUser(), 8000, 'Pemeriksaan status login terlalu lama. Periksa koneksi lalu coba lagi.'
+        db.auth.getSession(), 8000, 'Pemeriksaan status login terlalu lama. Periksa koneksi lalu coba lagi.'
       );
       if (error) throw error;
-      if (data?.user) {
-        currentUser = data.user;
-        return data.user;
+      const user = data?.session?.user || null;
+      if (user) {
+        currentUser = user;
+        return user;
       }
-      notice('Untuk ' + actionLabel + ', silakan login terlebih dahulu. Mengalihkan ke halaman login…');
+      notice('Untuk ' + actionLabel + ', silakan login atau daftar terlebih dahulu.', 'info', 'fa-right-to-bracket');
       if (loginRedirectTimer) clearTimeout(loginRedirectTimer);
       loginRedirectTimer = setTimeout(() => {
         location.href = '/login.html?next=' + encodeURIComponent(loginNextUrl());
@@ -85,7 +88,21 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   const commentName = $('commentName');
   const commentList = $('commentList');
   const commentsSection = $('commentsSection');
+  const relatedVideosButton = $('relatedVideosButton');
   let videoReady = false;
+
+  function normalizeThumbnailUrl(raw) {
+    const value = String(raw || '').trim(); if (!value) return '';
+    try {
+      const u = new URL(value, location.origin);
+      const host = u.hostname.toLowerCase().replace(/^www\./, '');
+      if (host === 'drive.google.com' || host === 'docs.google.com') {
+        const id = (u.pathname.match(/\/file\/d\/([^/]+)/) || [])[1] || u.searchParams.get('id');
+        if (id) return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w1200';
+      }
+      return u.href;
+    } catch (_) { return ''; }
+  }
   const downloadPageButton = $('downloadPageButton');
   const commentSubmitButton = commentForm?.querySelector('[type="submit"]');
   // A dash means the count could not be loaded; do not misrepresent an RPC failure as zero.
@@ -146,6 +163,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     notice('Komentar — tulis pendapatmu lalu tekan Kirim komentar.', 'info', 'fa-comment-dots');
     commentsSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     commentInput?.focus({ preventScroll: true });
+  });
+  relatedVideosButton?.addEventListener('click', () => {
+    notice('Video lainnya — pilih video lain untuk ditonton.', 'info', 'fa-clapperboard');
+    $('relatedVideosSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
   shareButton?.addEventListener('click', async () => {
     const shareUrl = window.__jsvideyShareUrl || (videoSlug ? location.origin + '/v/' + encodeURIComponent(videoSlug) : (videoId ? location.origin + '/watch.html?id=' + encodeURIComponent(videoId) : location.href));
@@ -521,12 +542,19 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         card.href = href;
         const thumb = document.createElement('div');
         thumb.className = 'related-thumb';
-        if (row.thumbnail_url) {
+        const thumbnailUrl = normalizeThumbnailUrl(row.thumbnail_url || row.thumbnail || row.thumbnailUrl || row.thumbnail_url_public || '');
+        if (thumbnailUrl) {
           const img = document.createElement('img');
-          img.src = row.thumbnail_url;
-          img.alt = '';
+          img.src = thumbnailUrl;
+          img.alt = row.title ? 'Thumbnail ' + row.title : 'Thumbnail video';
           img.loading = 'lazy';
           img.referrerPolicy = 'no-referrer';
+          img.onerror = () => {
+            img.onerror = null;
+            const original = String(row.thumbnail_url || row.thumbnail || row.thumbnailUrl || '');
+            if (original && original !== thumbnailUrl) img.src = original;
+            else { img.remove(); thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>'; }
+          };
           thumb.append(img);
         } else {
           thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>';
