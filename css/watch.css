@@ -158,3 +158,19 @@ video{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;bac
  .related-videos{margin-top:22px}
  .related-video-grid{gap:10px}
 }
+
+
+/* Single-player loading fix: loading state overlays the active player instead of
+   taking its own vertical space and creating a second-looking player area. */
+.player-stage{position:relative;min-height:220px}
+.player-stage>.state{
+  position:absolute;inset:0;z-index:6;
+  min-height:0;height:auto;margin:0;
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at center,#111c30 0%,rgba(3,5,10,.96) 78%);
+}
+.player-stage>.state[hidden]{display:none!important}
+.player-stage>.embed-frame{position:relative;z-index:1}
+.player-stage>video{position:relative;z-index:1}
+.player-stage>.ratio-tools{position:relative;z-index:2}
+@media(max-width:600px){.player-stage{min-height:0}.player-stage>.state{min-height:220px}}
