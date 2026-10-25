@@ -14,6 +14,10 @@ const json = (body: unknown, status = 200) =>
   });
 
 function normalizeCashiQr(value: unknown): string | null {
+  if (value && typeof value === "object") {
+    const v = value as Record<string, unknown>;
+    value = v.data_url ?? v.dataUrl ?? v.url ?? v.qrUrl ?? v.qr_url ?? v.base64 ?? v.content ?? null;
+  }
   if (typeof value !== "string") return null;
   const candidate = value.trim();
   if (!candidate) return null;
@@ -27,7 +31,11 @@ function normalizeCashiQr(value: unknown): string | null {
     if (comma < 0) return null;
     const metadata = candidate.slice(0, comma).replace(/\s+/g, "").toLowerCase();
     let payload = candidate.slice(comma + 1).trim();
-    if (!/^data:image\/(?:png|jpeg|jpg|webp);base64$/.test(metadata)) return null;
+    if (/^data:image\/(?:png|jpeg|jpg|webp);base64$/.test(metadata) === false) {
+      // Accept percent-encoded image data URIs returned by some gateways.
+      if (/^data:image\/(?:svg\+xml|png|jpeg|jpg|webp);charset=utf-8$/.test(metadata) && /%[0-9a-f]{2}/i.test(payload)) return candidate;
+      return null;
+    }
     payload = payload.replace(/\s+/g, "");
     // Accept URL-safe base64 and normalize it for HTML image rendering.
     payload = payload.replace(/-/g, "+").replace(/_/g, "/");
@@ -70,7 +78,7 @@ async function recoverExistingCashiOrder(orderId: string, amount: number) {
     const checkout = payload.checkout_url ?? payload.checkoutUrl ?? payload.payment_url ?? payload.paymentUrl ?? nestedPayment.checkout_url ?? nestedPayment.checkoutUrl ?? result?.checkout_url ?? result?.checkoutUrl ?? null;
     const qrUrl = normalizeCashiQr(qr);
     const checkoutCandidate = checkout ? String(checkout).trim() : null;
-    const checkoutUrl = checkoutCandidate && /^https:\/\//i.test(checkoutCandidate) ? checkoutCandidate : null;
+    let checkoutUrl = checkoutCandidate && /^https:\/\//i.test(checkoutCandidate) ? checkoutCandidate : null;
     if (!qrUrl && !checkoutUrl) return null;
     return {
       qr_url: qrUrl,
@@ -243,15 +251,33 @@ Deno.serve(async (req) => {
     const nestedPayment = providerData.payment && typeof providerData.payment === "object" ? providerData.payment : {};
     const qrValue = providerData.qrUrl ?? providerData.qr_url ?? providerData.qr_url_base64 ?? providerData.qr ?? nestedPayment.qrUrl ?? nestedPayment.qr_url ?? result.qrUrl ?? result.qr_url ?? null;
     const checkoutValue = providerData.checkout_url ?? providerData.checkoutUrl ?? providerData.payment_url ?? providerData.paymentUrl ?? nestedPayment.checkout_url ?? nestedPayment.checkoutUrl ?? result.checkout_url ?? result.checkoutUrl ?? null;
-    const qrUrl = normalizeCashiQr(qrValue);
+    let qrUrl = normalizeCashiQr(qrValue);
     const checkoutCandidate = checkoutValue ? String(checkoutValue).trim() : null;
-    const checkoutUrl = checkoutCandidate && /^https:\/\//i.test(checkoutCandidate) ? checkoutCandidate : null;
+    let checkoutUrl = checkoutCandidate && /^https:\/\//i.test(checkoutCandidate) ? checkoutCandidate : null;
 
     if (!Number.isFinite(finalAmount) || finalAmount <= 0) {
       return json({ error: "CASHI_RETURNED_INVALID_AMOUNT" }, 502);
     }
+    // If the create response's QR field is malformed, query the same provider order
+    // once. Never create a second order to work around a missing QR.
+    if (!qrUrl && !checkoutUrl) {
+      const recovered = await recoverExistingCashiOrder(providerOrderId, finalAmount);
+      if (recovered) {
+        qrUrl = recovered.qr_url;
+        checkoutUrl = recovered.checkout_url;
+      }
+    }
+
     // A usable checkout URL is enough if the QR field is malformed.
     if (!qrUrl && !checkoutUrl) {
+      // Remember the provider order ID and payload so retry can recover this same order.
+      const { error: persistError } = await service.from("jsvidey_payment_orders").update({
+        cashi_order_id: providerOrderId,
+        cashi_provider_status: String(providerData.status || result.status || "PENDING").toUpperCase(),
+        cashi_provider_payload: result,
+        updated_at: new Date().toISOString(),
+      }).eq("id", order.id).eq("user_id", userId);
+      if (persistError) console.error("Cashi invalid QR payload could not be persisted", persistError);
       const qrWasReturned = qrValue !== null && qrValue !== undefined && String(qrValue).trim() !== "";
       console.error("Cashi create-order returned no renderable QR/checkout", {
         providerFields: Object.keys(providerData || {}),
@@ -261,11 +287,18 @@ Deno.serve(async (req) => {
         providerOrderId,
       });
       return json({
-        error: qrWasReturned ? "CASHI_RETURNED_INVALID_QR" : "CASHI_RETURNED_NO_QR_OR_CHECKOUT",
-        detail: "Cashi response did not include a usable QR image or HTTPS checkout URL.",
-        provider_order_id: providerOrderId,
+        success: true,
+        order_id: order.id,
+        cashi_order_id: providerOrderId,
+        amount: finalAmount,
+        provider: providerData.provider || result.provider || "CASHI",
+        qr_url: null,
+        checkout_url: null,
+        recovery_required: true,
+        provider_error: qrWasReturned ? "CASHI_RETURNED_INVALID_QR" : "CASHI_RETURNED_NO_QR_OR_CHECKOUT",
         provider_fields: Object.keys(providerData || {}),
-      }, 502);
+        message: "Order tersimpan, tetapi Cashi belum memberikan QR atau checkout yang bisa ditampilkan. Status akan diperiksa otomatis; jangan membuat order kedua.",
+      }, 200);
     }
 
     const { error: updateError } = await service
