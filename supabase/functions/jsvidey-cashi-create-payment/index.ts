@@ -17,11 +17,31 @@ function normalizeCashiQr(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const candidate = value.trim();
   if (!candidate) return null;
+  // Cashi may return a hosted image URL instead of an inline QR image.
   if (/^https:\/\//i.test(candidate)) return candidate;
-  if (/^data:image\/(?:png|jpeg|jpg);base64,[A-Za-z0-9+/]+={0,2}$/i.test(candidate)) return candidate;
+
+  // Normalize data:image/* URIs. Some responses contain line breaks/spaces in
+  // base64 or whitespace around the media type, which strict regexes reject.
+  if (/^data:image\//i.test(candidate)) {
+    const comma = candidate.indexOf(",");
+    if (comma < 0) return null;
+    const metadata = candidate.slice(0, comma).replace(/\s+/g, "").toLowerCase();
+    let payload = candidate.slice(comma + 1).trim();
+    if (!/^data:image\/(?:png|jpeg|jpg|webp);base64$/.test(metadata)) return null;
+    payload = payload.replace(/\s+/g, "");
+    // Accept URL-safe base64 and normalize it for HTML image rendering.
+    payload = payload.replace(/-/g, "+").replace(/_/g, "/");
+    if (!payload || !/^[A-Za-z0-9+/]*={0,2}$/.test(payload)) return null;
+    payload = payload.replace(/=+$/, "");
+    payload += "=".repeat((4 - payload.length % 4) % 4);
+    return `${metadata},${payload}`;
+  }
+
   // Some gateways return raw base64 PNG data without a data-URI prefix.
-  if (candidate.length > 100 && /^[A-Za-z0-9+/]+={0,2}$/.test(candidate)) {
-    return `data:image/png;base64,${candidate}`;
+  const compact = candidate.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+  if (compact.length > 100 && /^[A-Za-z0-9+/]+={0,2}$/.test(compact)) {
+    const payload = compact.replace(/=+$/, "");
+    return `data:image/png;base64,${payload}${"=".repeat((4 - payload.length % 4) % 4)}`;
   }
   return null;
 }
@@ -45,8 +65,9 @@ async function recoverExistingCashiOrder(orderId: string, amount: number) {
       return null;
     }
     const payload = result?.data && typeof result.data === "object" ? result.data : result;
-    const qr = payload.qrUrl ?? payload.qr_url ?? payload.qr_url_base64 ?? payload.qr ?? result?.qrUrl ?? result?.qr_url ?? null;
-    const checkout = payload.checkout_url ?? payload.checkoutUrl ?? payload.payment_url ?? payload.paymentUrl ?? result?.checkout_url ?? result?.checkoutUrl ?? null;
+    const nestedPayment = payload.payment && typeof payload.payment === "object" ? payload.payment : {};
+    const qr = payload.qrUrl ?? payload.qr_url ?? payload.qr_url_base64 ?? payload.qr ?? nestedPayment.qrUrl ?? nestedPayment.qr_url ?? result?.qrUrl ?? result?.qr_url ?? null;
+    const checkout = payload.checkout_url ?? payload.checkoutUrl ?? payload.payment_url ?? payload.paymentUrl ?? nestedPayment.checkout_url ?? nestedPayment.checkoutUrl ?? result?.checkout_url ?? result?.checkoutUrl ?? null;
     const qrUrl = normalizeCashiQr(qr);
     const checkoutCandidate = checkout ? String(checkout).trim() : null;
     const checkoutUrl = checkoutCandidate && /^https:\/\//i.test(checkoutCandidate) ? checkoutCandidate : null;
@@ -219,8 +240,9 @@ Deno.serve(async (req) => {
     const providerData = result?.data && typeof result.data === "object" ? result.data : result;
     const providerOrderId = String(providerData.orderId || providerData.order_id || result.orderId || result.order_id || cashiOrderId);
     const finalAmount = Number(providerData.amount ?? result.amount ?? amount);
-    const qrValue = providerData.qrUrl ?? providerData.qr_url ?? providerData.qr_url_base64 ?? providerData.qr ?? result.qrUrl ?? result.qr_url ?? null;
-    const checkoutValue = providerData.checkout_url ?? providerData.checkoutUrl ?? providerData.payment_url ?? providerData.paymentUrl ?? result.checkout_url ?? result.checkoutUrl ?? null;
+    const nestedPayment = providerData.payment && typeof providerData.payment === "object" ? providerData.payment : {};
+    const qrValue = providerData.qrUrl ?? providerData.qr_url ?? providerData.qr_url_base64 ?? providerData.qr ?? nestedPayment.qrUrl ?? nestedPayment.qr_url ?? result.qrUrl ?? result.qr_url ?? null;
+    const checkoutValue = providerData.checkout_url ?? providerData.checkoutUrl ?? providerData.payment_url ?? providerData.paymentUrl ?? nestedPayment.checkout_url ?? nestedPayment.checkoutUrl ?? result.checkout_url ?? result.checkoutUrl ?? null;
     const qrUrl = normalizeCashiQr(qrValue);
     const checkoutCandidate = checkoutValue ? String(checkoutValue).trim() : null;
     const checkoutUrl = checkoutCandidate && /^https:\/\//i.test(checkoutCandidate) ? checkoutCandidate : null;
@@ -231,6 +253,13 @@ Deno.serve(async (req) => {
     // A usable checkout URL is enough if the QR field is malformed.
     if (!qrUrl && !checkoutUrl) {
       const qrWasReturned = qrValue !== null && qrValue !== undefined && String(qrValue).trim() !== "";
+      console.error("Cashi create-order returned no renderable QR/checkout", {
+        providerFields: Object.keys(providerData || {}),
+        qrField: qrValue == null ? null : (typeof qrValue === "string" ? qrValue.slice(0, 40).replace(/[^a-zA-Z0-9:;/+._-]/g, "?") : typeof qrValue),
+        qrLength: typeof qrValue === "string" ? qrValue.length : null,
+        checkoutPresent: Boolean(checkoutValue),
+        providerOrderId,
+      });
       return json({
         error: qrWasReturned ? "CASHI_RETURNED_INVALID_QR" : "CASHI_RETURNED_NO_QR_OR_CHECKOUT",
         detail: "Cashi response did not include a usable QR image or HTTPS checkout URL.",
