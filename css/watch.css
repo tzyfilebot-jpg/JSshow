@@ -130,3 +130,31 @@ video{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;bac
 
 
 /* Watch-only Bug Reader panel */
+
+
+/* Professional watch layout refinements */
+.watch-shell{width:min(100% - 32px,1040px);padding-bottom:42px}
+.watch-kicker{margin-bottom:12px;color:#8fa8ca}
+.player-card,.comments-panel{border-color:rgba(135,165,210,.18)}
+.video-info p#statusText{overflow-wrap:anywhere}
+.watch-social{display:grid;gap:18px}
+.comments-panel{scroll-margin-top:90px}
+.related-videos{padding-top:2px}
+.related-video-grid{align-items:stretch}
+.related-card{transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.related-card:hover{transform:translateY(-3px);border-color:#398fff;box-shadow:0 12px 30px #0003}
+.related-thumb img{display:block}
+.related-ad-slot{grid-column:1/-1;display:flex;align-items:center;justify-content:center;width:100%;min-width:0;min-height:0;margin:4px 0 10px;padding:10px 0;overflow:hidden}
+.related-ad-slot .jsv-ad-layout-code{width:100%;max-width:100%;overflow:hidden;justify-content:center}
+.related-ad-slot iframe{max-width:100%;border:0}
+.watch-entry-close{display:none!important}
+.state{min-height:clamp(200px,42vw,420px)}
+@media(max-width:600px){
+ .watch-shell{width:min(100% - 20px,1040px);padding-top:12px}
+ .player-card{border-radius:16px}
+ .video-info{padding:16px}
+ .watch-social{margin-top:18px;gap:14px}
+ .comments-panel{border-radius:16px}
+ .related-videos{margin-top:22px}
+ .related-video-grid{gap:10px}
+}
