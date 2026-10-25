@@ -74,6 +74,10 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
      provider='Google Drive';embed='https://drive.google.com/file/d/'+encodeURIComponent(id)+'/preview';
    }else if(host==='videy.co'||host.endsWith('.videy.co')||host==='videy.net'||host.endsWith('.videy.net')){
      provider='Videy';
+     // Normalize Videy share URLs to the canonical player route.
+     const videyId=u.searchParams.get('id') || (path.match(/\/v\/([^/]+)/)||[])[1];
+     if(videyId){embed='https://videy.co/v/?id='+encodeURIComponent(videyId);}
+     else if(path==='/v/' || path==='/v'){throw new Error('Link Videy tidak memiliki ID video (?id=...).');}
    }else if(host==='vimeo.com'||host==='player.vimeo.com'){
      id=host==='player.vimeo.com'?(path.match(/\/video\/([0-9]+)/)||[])[1]:path.split('/').filter(Boolean)[0];
      if(!id||!/^\d+$/.test(id))throw new Error('Link Vimeo tidak dikenali.');
@@ -82,10 +86,13 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
    const direct=/\.(mp4|webm|mov|m4v|ogv|ogg|m3u8)(?:$)/i.test(path);
    return {embed,provider,direct};
  }
+ let embedWatchdog=null;
  function showEmbed(url,title){
    const m=classify(url);
+   if(embedWatchdog){clearTimeout(embedWatchdog);embedWatchdog=null;}
    window.__sourceVideoUrl=url;
    const titleEl=$('videoTitle');if(titleEl)titleEl.textContent=title||'Video Jsvidey';
+   const status=$('statusText');
    if(m.direct){
      if(ratioTools)ratioTools.hidden=true;
      frame.classList.remove('portrait','landscape');
@@ -105,14 +112,38 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
      player.setAttribute('controls','');player.setAttribute('playsinline','');
      player.load();
    }
-   else{player.pause();player.removeAttribute('src');player.load();player.hidden=true;iframe.src=m.embed;frame.hidden=false;const isDrive=m.provider==='Google Drive';if(ratioTools)ratioTools.hidden=!isDrive;setRatio('landscape');}
-   if(state && !m.direct)state.hidden=true;
-   else if(state && m.direct){state.hidden=false;state.classList.remove('error');state.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i><span>Menyiapkan video…</span>';}
-   const status=$('statusText');
+   else{
+     player.pause();player.removeAttribute('src');player.load();player.hidden=true;
+     iframe.onload=()=>{
+       if(embedWatchdog){clearTimeout(embedWatchdog);embedWatchdog=null;}
+       if(state){state.hidden=true;state.classList.remove('error');}
+       if(status)status.textContent=m.provider==='Google Drive'?'Google Drive terbuka. Jika video tidak muncul, periksa izin file dan coba buka sumber aslinya.':'Pemutar '+m.provider+' sudah dimuat. Jika video tetap kosong, buka sumber video langsung.';
+     };
+     iframe.onerror=()=>{
+       if(embedWatchdog){clearTimeout(embedWatchdog);embedWatchdog=null;}
+       const msg='Pemutar '+m.provider+' gagal dimuat. Penyedia mungkin memblokir embed atau link sudah tidak aktif.';
+       if(state){state.hidden=false;state.classList.add('error');state.textContent=msg;}
+       if(status)status.textContent=msg;
+     };
+     iframe.src=m.embed;frame.hidden=false;
+     const isDrive=m.provider==='Google Drive';if(ratioTools)ratioTools.hidden=!isDrive;setRatio('landscape');
+     if(state){state.hidden=false;state.classList.remove('error');state.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i><span>Memuat pemutar '+m.provider+'…</span>';}
+     // Avoid an endless spinner when a provider blocks iframe loading silently.
+     embedWatchdog=setTimeout(()=>{
+       embedWatchdog=null;
+       if(state){state.hidden=false;state.classList.add('error');state.textContent='Pemutar tidak memberi respons. Link mungkin diblokir, privat, atau tidak mendukung embed.';}
+       if(status){
+         const safeUrl=String(url).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+         status.innerHTML='Pemutar tidak merespons. <a href="'+safeUrl+'" target="_blank" rel="noopener noreferrer">Buka video langsung</a>. Untuk Google Drive, pastikan akses file diatur ke “Siapa saja yang memiliki link”.';
+       }
+     },18000);
+   }
+   if(state && m.direct){state.hidden=false;state.classList.remove('error');state.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i><span>Menyiapkan video…</span>';}
    if(status)status.textContent=m.provider==='Google Drive'?'Media: Google Drive. Pastikan file disetel “Siapa saja yang memiliki link” sebagai Viewer; file privat atau yang dibatasi organisasi tidak dapat diputar melalui embed.':'Media: '+m.provider+'. Tombol Download tersedia di bagian bawah video jika penyedia mendukungnya.';
    const downloadPageButton=$('downloadPageButton');if(downloadPageButton)downloadPageButton.href='/download.html?id='+encodeURIComponent(videoId);
  }
- if(!videoId&&!videoSlug){fail('Link video tidak ditemukan. Buka tautan video yang valid.');return;}
+ const startupWatchdog=setTimeout(()=>{if(state&&!state.hidden&&!state.classList.contains('error')&&(!entryNotice||entryNotice.hidden)){fail('Halaman video belum berhasil menyiapkan data. Periksa koneksi atau fungsi lookup video di Supabase, lalu muat ulang.');}},20000);
+ if(!videoId&&!videoSlug){clearTimeout(startupWatchdog);fail('Link video tidak ditemukan. Buka tautan video yang valid.');return;}
  if(videoId&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(videoId)){
    // URL pendek lama dapat masuk sebagai ?id=slug; perlakukan sebagai slug.
    videoSlug=videoId;videoId=null;
@@ -149,12 +180,14 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
    window.dispatchEvent(new CustomEvent('jsvidey:video-ready',{detail:{id:record.id,slug:record.slug||videoSlug||null}}));
    window.__jsvideyShareUrl=window.__jsvideyVideoSlug ? location.origin+'/v/'+encodeURIComponent(window.__jsvideyVideoSlug) : location.origin+'/watch.html?id='+encodeURIComponent(record.id);
    // Show the title/thumbnail gate first. The player is mounted only after Play + 3s loading.
+   clearTimeout(startupWatchdog);
    openEntryNotice(record);
    // Count a view through a database function; never allow the browser to write raw view rows.
    watchWithTimeout(db.rpc('jsvidey_record_video_view',{p_video_id:record.id}),8000,'Pencatatan view terlalu lama.')
      .then(({error})=>{if(error)console.warn('View count not recorded:',error.message)})
      .catch(error=>console.warn('View count not recorded:',error.message));
  }catch(e){
+   clearTimeout(startupWatchdog);
    console.error('Embed lookup failed:',e);
    const detail=e?.name==='AbortError'?'Permintaan ke Supabase melewati batas waktu 12 detik.':(e?.message||String(e));
    fail('Gagal memuat link embed: '+detail+' Coba muat ulang halaman.');
