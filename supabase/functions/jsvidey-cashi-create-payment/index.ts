@@ -13,6 +13,19 @@ const json = (body: unknown, status = 200) =>
     headers: { ...CORS, "content-type": "application/json; charset=utf-8" },
   });
 
+function normalizeCashiQr(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const candidate = value.trim();
+  if (!candidate) return null;
+  if (/^https:\/\//i.test(candidate)) return candidate;
+  if (/^data:image\/(?:png|jpeg|jpg);base64,[A-Za-z0-9+/]+={0,2}$/i.test(candidate)) return candidate;
+  // Some gateways return raw base64 PNG data without a data-URI prefix.
+  if (candidate.length > 100 && /^[A-Za-z0-9+/]+={0,2}$/.test(candidate)) {
+    return `data:image/png;base64,${candidate}`;
+  }
+  return null;
+}
+
 function env(name: string): string {
   const value = Deno.env.get(name);
   if (!value) throw new Error(`${name} is not configured`);
@@ -34,10 +47,10 @@ async function recoverExistingCashiOrder(orderId: string, amount: number) {
     const payload = result?.data && typeof result.data === "object" ? result.data : result;
     const qr = payload.qrUrl ?? payload.qr_url ?? payload.qr_url_base64 ?? payload.qr ?? result?.qrUrl ?? result?.qr_url ?? null;
     const checkout = payload.checkout_url ?? payload.checkoutUrl ?? payload.payment_url ?? payload.paymentUrl ?? result?.checkout_url ?? result?.checkoutUrl ?? null;
-    const qrUrl = qr ? String(qr) : null;
-    const checkoutUrl = checkout ? String(checkout) : null;
-    if (checkoutUrl && !/^https:\/\//i.test(checkoutUrl)) return null;
-    if (qrUrl && !(/^https:\/\//i.test(qrUrl) || /^data:image\/(?:png|jpeg|jpg);base64,/i.test(qrUrl))) return null;
+    const qrUrl = normalizeCashiQr(qr);
+    const checkoutCandidate = checkout ? String(checkout).trim() : null;
+    const checkoutUrl = checkoutCandidate && /^https:\/\//i.test(checkoutCandidate) ? checkoutCandidate : null;
+    if (!qrUrl && !checkoutUrl) return null;
     return {
       qr_url: qrUrl,
       checkout_url: checkoutUrl,
@@ -208,17 +221,22 @@ Deno.serve(async (req) => {
     const finalAmount = Number(providerData.amount ?? result.amount ?? amount);
     const qrValue = providerData.qrUrl ?? providerData.qr_url ?? providerData.qr_url_base64 ?? providerData.qr ?? result.qrUrl ?? result.qr_url ?? null;
     const checkoutValue = providerData.checkout_url ?? providerData.checkoutUrl ?? providerData.payment_url ?? providerData.paymentUrl ?? result.checkout_url ?? result.checkoutUrl ?? null;
-    const qrUrl = qrValue ? String(qrValue) : null;
-    const checkoutUrl = checkoutValue ? String(checkoutValue) : null;
+    const qrUrl = normalizeCashiQr(qrValue);
+    const checkoutCandidate = checkoutValue ? String(checkoutValue).trim() : null;
+    const checkoutUrl = checkoutCandidate && /^https:\/\//i.test(checkoutCandidate) ? checkoutCandidate : null;
 
     if (!Number.isFinite(finalAmount) || finalAmount <= 0) {
       return json({ error: "CASHI_RETURNED_INVALID_AMOUNT" }, 502);
     }
-    if (checkoutUrl && !/^https:\/\//i.test(checkoutUrl)) {
-      return json({ error: "CASHI_RETURNED_INVALID_CHECKOUT_URL" }, 502);
-    }
-    if (qrUrl && !(/^https:\/\//i.test(qrUrl) || /^data:image\/(?:png|jpeg|jpg);base64,/i.test(qrUrl))) {
-      return json({ error: "CASHI_RETURNED_INVALID_QR" }, 502);
+    // A usable checkout URL is enough if the QR field is malformed.
+    if (!qrUrl && !checkoutUrl) {
+      const qrWasReturned = qrValue !== null && qrValue !== undefined && String(qrValue).trim() !== "";
+      return json({
+        error: qrWasReturned ? "CASHI_RETURNED_INVALID_QR" : "CASHI_RETURNED_NO_QR_OR_CHECKOUT",
+        detail: "Cashi response did not include a usable QR image or HTTPS checkout URL.",
+        provider_order_id: providerOrderId,
+        provider_fields: Object.keys(providerData || {}),
+      }, 502);
     }
 
     const { error: updateError } = await service
