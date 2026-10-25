@@ -11,15 +11,15 @@
     let user=null;try{user=(await db.auth.getUser()).data?.user||null}catch(_){}
     if(!user||document.getElementById('jsvSupportWidget'))return;
     const wrap=document.createElement('aside');wrap.id='jsvSupportWidget';wrap.className='jsv-support-widget';
-    wrap.innerHTML=`<button class="jsv-support-fab" id="jsvSupportToggle" type="button" aria-expanded="false"><i class="fa-regular fa-comments"></i><span>Chat</span></button>
-      <section class="jsv-support-menu" id="jsvSupportMenu" hidden><header><strong>Hubungi kami</strong><button id="jsvSupportClose" type="button" aria-label="Tutup">×</button></header>
+    wrap.innerHTML=`<button class="jsv-support-fab" id="jsvSupportToggle" type="button" aria-expanded="false"><span class="jsv-support-fab-logo"><i class="fa-solid fa-headset"></i><i class="fa-solid fa-circle"></i></span><span class="jsv-support-fab-copy"><b>Butuh bantuan?</b><small>Chat dengan tim support</small></span><i class="fa-solid fa-chevron-up jsv-support-fab-chevron"></i></button>
+      <section class="jsv-support-menu" id="jsvSupportMenu" hidden><header class="jsv-support-brand"><span class="jsv-support-brand-logo"><i class="fa-solid fa-headset"></i></span><span class="jsv-support-brand-copy"><strong>Tele / Support Center</strong><small><i class="fa-solid fa-circle"></i> Tim bantuan siap membantu</small></span><button id="jsvSupportClose" type="button" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button></header><p class="jsv-support-intro">Pilih kanal yang paling nyaman atau kirim pesan langsung kepada admin.</p>
       <nav class="jsv-support-links"><button id="jsvSupportOpenChat" type="button"><i class="fa-solid fa-headset"></i> Support</button><a href="https://t.me/+DqdGHeiPZA9mYTQx" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-telegram"></i><span>Gabung Group</span></a><a href="https://t.me/+JUGpWnRLT8ljNGZk" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-telegram"></i><span>Join Channel Oxcie</span></a></nav>
       <div class="jsv-support-chat" id="jsvSupportChat" hidden><div class="jsv-support-messages" id="jsvSupportMessages" aria-live="polite"><p class="muted">Memuat percakapan…</p></div>
       <form id="jsvSupportForm"><textarea id="jsvSupportText" maxlength="1500" rows="2" placeholder="Tulis pesan untuk admin…"></textarea><label class="jsv-support-attach"> <i class="fa-regular fa-image"></i> Kirim gambar <input id="jsvSupportImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label><button type="submit" id="jsvSupportSend">Kirim</button><small id="jsvSupportStatus" role="status"></small></form></div></section>`;
     document.body.appendChild(wrap);
     const menu=$('jsvSupportMenu'),chat=$('jsvSupportChat'),messages=$('jsvSupportMessages'),status=$('jsvSupportStatus');
-    $('jsvSupportToggle').onclick=()=>{menu.hidden=!menu.hidden;$('jsvSupportToggle').setAttribute('aria-expanded',String(!menu.hidden));};
-    $('jsvSupportClose').onclick=()=>{menu.hidden=true;$('jsvSupportToggle').setAttribute('aria-expanded','false')};
+    $('jsvSupportToggle').onclick=()=>{menu.hidden=!menu.hidden;$('jsvSupportToggle').setAttribute('aria-expanded',String(!menu.hidden));wrap.classList.toggle('is-open',!menu.hidden);};
+    $('jsvSupportClose').onclick=()=>{menu.hidden=true;$('jsvSupportToggle').setAttribute('aria-expanded','false');wrap.classList.remove('is-open')};
     $('jsvSupportOpenChat').onclick=()=>{chat.hidden=!chat.hidden;if(!chat.hidden)loadMessages()};
     async function loadMessages(){
       const {data,error}=await db.from('jsvidey_support_messages').select('id,user_id,message,status,created_at,sender_role,attachment_url,attachment_name').eq('user_id',user.id).order('created_at',{ascending:true}).limit(200);
