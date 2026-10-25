@@ -1,35 +1,282 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-const URL="https://cashi.id/api/create-order";
-const CORS={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS"};
-const json=(b:unknown,s=200)=>new Response(JSON.stringify(b),{status:s,headers:{...CORS,"content-type":"application/json; charset=utf-8"}});
-const env=(n:string)=>{const v=Deno.env.get(n);if(!v)throw new Error(`${n} is not configured`);return v};
-Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{headers:CORS});if(req.method!=="POST")return json({error:"Method not allowed"},405);
-try{
- const body=await req.json().catch(()=>({})), id=String(body.order_id||"").trim();if(!id)return json({error:"order_id required"},400);
- const su=env("SUPABASE_URL"), service=createClient(su,env("SUPABASE_SERVICE_ROLE_KEY"),{auth:{persistSession:false,autoRefreshToken:false}});
- const h=req.headers.get("Authorization")||"";if(!h.startsWith("Bearer "))return json({error:"Login required"},401);
- const auth=createClient(su,env("SUPABASE_ANON_KEY"),{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{Authorization:h}}});
- const {data:ad,error:ae}=await auth.auth.getUser(), uid=ad.user?.id;if(ae||!uid)return json({error:"Invalid session"},401);
- const {data:o,error:oe}=await service.from("jsvidey_payment_orders").select("id,user_id,amount_idr,status,cashi_order_id,cashi_qr_url,cashi_checkout_url,cashi_provider_status").eq("id",id).maybeSingle();
- if(oe||!o)return json({error:"Order not found"},404);if(o.user_id!==uid)return json({error:"ORDER_ACCESS_DENIED"},403);
- if(o.status==="approved")return json({success:true,already_approved:true,order_id:o.id});
- if(o.status==="rejected")return json({error:"Order rejected; contact admin"},409);
- if(o.cashi_order_id&&(o.cashi_qr_url||o.cashi_checkout_url)&&String(o.cashi_provider_status||"").toUpperCase()!=="FAILED")
-  return json({success:true,order_id:o.id,cashi_order_id:o.cashi_order_id,amount:o.amount_idr,qr_url:o.cashi_qr_url||null,checkout_url:o.cashi_checkout_url||null,reused:true});
- const cashiId=`JSV-${o.id}`, resp=await fetch(URL,{method:"POST",headers:{"x-api-key":env("CASHI_API_KEY"),"Content-Type":"application/json"},body:JSON.stringify({amount:Number(o.amount_idr),order_id:cashiId,kode_channel:"QRIS_CUSTOM"})});
- const raw=await resp.text();
- let r:any;
- try { r=JSON.parse(raw); } catch { r={raw_response:raw.slice(0,500)}; }
- if(!resp.ok||r?.success!==true){
-  console.error("Cashi create rejected",JSON.stringify({http_status:resp.status,success:r?.success,message:r?.message,error:r?.error,response_preview:typeof r?.raw_response==="string"?r.raw_response.slice(0,300):undefined}));
-  return json({error:"CASHI_CREATE_PAYMENT_FAILED",detail:String(r?.message||r?.error||`HTTP ${resp.status}`)},502);
- }
- const amount=Number(r.amount??o.amount_idr), qr=r.qrUrl?String(r.qrUrl):null, checkout=r.checkout_url?String(r.checkout_url):null;
- if(!Number.isFinite(amount)||amount!==Number(o.amount_idr))return json({error:"CASHI_AMOUNT_MISMATCH",expected_amount:o.amount_idr,provider_amount:r.amount??null},502);
- if(!qr&&!checkout)return json({error:"CASHI_QR_OR_CHECKOUT_MISSING"},502);
- const validQr=(value:string|null)=>!value||/^https:\/\//i.test(value)||/^data:image\/(?:png|jpeg|jpg);base64,[A-Za-z0-9+/=\r\n]+$/i.test(value);
- if(!validQr(qr)||(checkout&&!/^https:\/\//i.test(checkout)))return json({error:"CASHI_RETURNED_INVALID_URL"},502);
- const {error:se}=await service.from("jsvidey_payment_orders").update({cashi_order_id:String(r.orderId||cashiId),cashi_qr_url:qr,cashi_checkout_url:checkout,cashi_provider_status:"PENDING",cashi_provider_payload:r,updated_at:new Date().toISOString()}).eq("id",o.id).eq("user_id",uid);
- if(se){console.error(se);return json({error:"CASHI_INVOICE_SAVE_FAILED"},500)}
- return json({success:true,order_id:o.id,cashi_order_id:String(r.orderId||cashiId),amount,fee:Number(r.fee||0),qr_url:qr,checkout_url:checkout,status:"PENDING"});
-}catch(e){console.error(e);return json({error:e instanceof Error?e.message:"Internal server error"},500)}});
+
+const CASHI_CREATE_URL = "https://cashi.id/api/create-order";
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, "content-type": "application/json; charset=utf-8" },
+  });
+
+function env(name: string): string {
+  const value = Deno.env.get(name);
+  if (!value) throw new Error(`${name} is not configured`);
+  return value;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const orderId = String(body.order_id || "").trim();
+    const guestToken = String(body.guest_access_token || "").trim();
+    if (!orderId) return json({ error: "order_id is required" }, 400);
+
+    const authHeader = req.headers.get("Authorization") || "";
+    const supabaseUrl = env("SUPABASE_URL");
+    const serviceKey = env("SUPABASE_SERVICE_ROLE_KEY");
+
+    // Service-role client is used only for trusted DB reads/writes.
+    const supabase = createClient(
+      supabaseUrl,
+      serviceKey,
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+
+    // Authenticate the caller separately. The previous implementation only
+    // used the service-role client, so anyone who knew an order UUID could
+    // attempt to create a Cashi invoice for another buyer's order.
+    let callerUserId: string | null = null;
+    if (authHeader.startsWith("Bearer ")) {
+      const authClient = createClient(
+        supabaseUrl,
+        env("SUPABASE_ANON_KEY"),
+        {
+          auth: { persistSession: false, autoRefreshToken: false },
+          global: { headers: { Authorization: authHeader } },
+        },
+      );
+      const { data: userData } = await authClient.auth.getUser();
+      callerUserId = userData.user?.id || null;
+    }
+
+    if (!callerUserId && !guestToken) {
+      return json({ error: "AUTH_OR_GUEST_TOKEN_REQUIRED" }, 401);
+    }
+
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("id,order_number,amount,currency,status,payment_reference,provider_order_id,buyer_id,guest_access_token")
+      .eq("id", orderId)
+      .single();
+
+    if (orderError || !order) {
+      return json({ error: "Order not found" }, 404);
+    }
+
+    const ownsAsUser = !!callerUserId && order.buyer_id === callerUserId;
+    const ownsAsGuest = !callerUserId && !!guestToken && order.guest_access_token === guestToken;
+    if (!ownsAsUser && !ownsAsGuest) {
+      return json({ error: "ORDER_ACCESS_DENIED" }, 403);
+    }
+
+    if (["paid", "completed"].includes(String(order.status))) {
+      return json({
+        success: true,
+        already_paid: true,
+        order_id: order.id,
+      });
+    }
+
+    if (!["pending", "waiting_payment", "processing"].includes(String(order.status))) {
+      return json({
+        error: `Order cannot be paid in status ${order.status}`,
+      }, 409);
+    }
+
+    // Reuse an existing pending Cashi payment to avoid duplicate invoices.
+    const { data: existingPayment } = await supabase
+      .from("payments")
+      .select("provider_payment_id,invoice_id,checkout_url,qr_string,status,amount")
+      .eq("order_id", order.id)
+      .eq("provider", "CASHI")
+      .in("status", ["pending"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingPayment?.checkout_url || existingPayment?.qr_string) {
+      return json({
+        success: true,
+        order_id: order.id,
+        provider: "CASHI",
+        checkout_url: existingPayment.checkout_url || null,
+        qr_url: existingPayment.qr_string || null,
+        reused: true,
+      });
+    }
+
+    const cashiOrderId = `SL-${order.id}`;
+
+    const response = await fetch(CASHI_CREATE_URL, {
+      method: "POST",
+      headers: {
+        "x-api-key": env("CASHI_API_KEY"),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: Number(order.amount),
+        order_id: cashiOrderId,
+      }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok || result?.success !== true) {
+      const providerMessage =
+        result?.message ||
+        result?.error ||
+        result?.errors ||
+        `HTTP ${response.status}`;
+      console.error("Cashi create-order rejected", {
+        status: response.status,
+        providerMessage,
+        result,
+      });
+      return json({
+        error: `CASHI_CREATE_ORDER_FAILED: ${String(providerMessage)}`,
+        provider_status: response.status,
+        provider_response: result,
+      }, 502);
+    }
+
+    const providerId = String(result.orderId || cashiOrderId);
+    const amount = Number(result.amount ?? order.amount);
+    const fee = Number(result.fee ?? 0);
+    const checkoutUrl = result.checkout_url ? String(result.checkout_url) : null;
+    const qrUrl = result.qrUrl ? String(result.qrUrl) : null;
+
+    // The live database uses a PARTIAL unique index on
+    // (provider, provider_payment_id) WHERE provider_payment_id IS NOT NULL.
+    // PostgREST upsert/onConflict cannot reliably infer that partial index.
+    // Do an explicit lookup, then UPDATE or INSERT instead.
+    if (!Number.isFinite(amount) || amount < 0) {
+      return json({ error: "Invalid Cashi amount" }, 502);
+    }
+    if (!Number.isFinite(fee) || fee < 0) {
+      return json({ error: "Invalid Cashi fee" }, 502);
+    }
+    const netAmount = amount - fee;
+    if (netAmount < 0) {
+      return json({ error: "Invalid Cashi net amount" }, 502);
+    }
+
+    const paymentPayload = {
+      order_id: order.id,
+      provider: "CASHI",
+      payment_method: "CASHI",
+      provider_payment_id: providerId,
+      invoice_id: providerId,
+      amount,
+      fee,
+      net_amount: netAmount,
+      status: "pending",
+      checkout_url: checkoutUrl,
+      qr_string: qrUrl,
+      provider_payload: result,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: existingByProviderId, error: lookupError } = await supabase
+      .from("payments")
+      .select("id")
+      .eq("provider", "CASHI")
+      .eq("provider_payment_id", providerId)
+      .maybeSingle();
+
+    if (lookupError) {
+      console.error("payments lookup failed", lookupError);
+      return json({
+        error: "Payment record could not be checked",
+        db_error: lookupError.message,
+        db_details: lookupError.details || null,
+        db_hint: lookupError.hint || null,
+      }, 500);
+    }
+
+    let paymentError = null;
+
+    if (existingByProviderId?.id) {
+      const { error } = await supabase
+        .from("payments")
+        .update(paymentPayload)
+        .eq("id", existingByProviderId.id);
+      paymentError = error;
+    } else {
+      const { error } = await supabase
+        .from("payments")
+        .insert(paymentPayload);
+      paymentError = error;
+
+      // Two fast clicks can race between the lookup and INSERT. If the
+      // partial unique index catches that race, fetch the row and update it
+      // instead of returning a false payment-save failure.
+      if (paymentError) {
+        const duplicate = /duplicate key|unique constraint/i.test(paymentError.message || "");
+        if (duplicate) {
+          const { data: racedPayment, error: racedLookupError } = await supabase
+            .from("payments")
+            .select("id")
+            .eq("provider", "CASHI")
+            .eq("provider_payment_id", providerId)
+            .maybeSingle();
+
+          if (!racedLookupError && racedPayment?.id) {
+            const { error: racedUpdateError } = await supabase
+              .from("payments")
+              .update(paymentPayload)
+              .eq("id", racedPayment.id);
+            paymentError = racedUpdateError;
+          }
+        }
+      }
+    }
+
+    if (paymentError) {
+      console.error("payments save failed", paymentError);
+      return json({
+        error: "Payment record could not be saved",
+        db_error: paymentError.message,
+        db_details: paymentError.details || null,
+        db_hint: paymentError.hint || null,
+        provider_payment_id: providerId,
+        order_id: order.id,
+      }, 500);
+    }
+
+    const { error: orderUpdateError } = await supabase
+      .from("orders")
+      .update({
+        provider: "CASHI",
+        provider_order_id: providerId,
+        payment_reference: providerId,
+        status: "waiting_payment",
+      })
+      .eq("id", order.id);
+
+    if (orderUpdateError) {
+      console.error("order update failed", orderUpdateError);
+      return json({ error: "Order could not be updated" }, 500);
+    }
+
+    return json({
+      success: true,
+      order_id: order.id,
+      provider: "CASHI",
+      cashi_order_id: providerId,
+      amount,
+      fee,
+      checkout_url: checkoutUrl,
+      qr_url: qrUrl,
+    });
+  } catch (error) {
+    console.error(error);
+    return json({ error: error instanceof Error ? error.message : "Internal server error" }, 500);
+  }
+});
