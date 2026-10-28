@@ -209,3 +209,23 @@ video{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;bac
 @media(max-width:620px){.watch-access-notice{padding:17px 13px}.watch-access-thumbnail{max-height:190px}.watch-access-notice .watch-access-actions{flex-direction:column;width:100%}.watch-access-notice .watch-access-cta,.watch-access-notice .watch-access-secondary{width:100%;flex:1}}
 
 .watch-access-provider-note{display:block;max-width:520px;color:#8fa4c1;font-size:.82rem;line-height:1.5;margin-top:2px}
+
+/* Full-screen Adsterra / membership prompt for the Watch page */
+.watch-ad-gate[hidden]{display:none!important}
+.watch-ad-gate{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(2,5,12,.94);backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);overflow:auto}
+.watch-ad-gate-card{width:min(100%,440px);max-height:calc(100dvh - 36px);overflow:auto;padding:clamp(24px,6vw,34px) clamp(18px,5vw,28px);border:1px solid rgba(91,174,255,.32);border-radius:24px;text-align:center;background:radial-gradient(ellipse at top,#172b49 0,#0c1424 56%,#080d17 100%);box-shadow:0 25px 90px #000a;color:#f4f7ff}
+.watch-ad-gate-icon{display:grid;place-items:center;width:62px;height:62px;margin:0 auto 16px;border-radius:20px;background:linear-gradient(135deg,#267eff,#15b7e7);color:white;font-size:1.55rem;box-shadow:0 10px 30px #147bff35}
+.watch-ad-gate-eyebrow{margin:0 0 8px;color:#73cfff;font-size:.68rem;font-weight:900;letter-spacing:.16em}
+.watch-ad-gate-card h2{margin:0 auto 10px;font-size:clamp(1.35rem,5vw,1.75rem);line-height:1.2}
+.watch-ad-gate-card>p:not(.watch-ad-gate-eyebrow){color:#aebdd4;font-size:.91rem;line-height:1.55}
+.watch-ad-slot{width:100%;min-height:0;max-width:100%;margin:12px auto;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.watch-ad-slot:empty{display:none}
+.watch-ad-slot iframe{max-width:100%;border:0}
+.watch-ad-loading{margin:14px 0!important;color:#80d8ff!important;font-weight:750}
+.watch-ad-gate-actions{display:grid;gap:10px;margin-top:20px}
+.watch-ad-primary,.watch-ad-secondary{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:49px;padding:12px 16px;border:0;border-radius:13px;font-weight:850;font-size:.94rem;text-decoration:none;cursor:pointer}
+.watch-ad-primary{background:linear-gradient(110deg,#267eff,#13b8e8);color:#fff;box-shadow:0 8px 24px #147bff28}
+.watch-ad-primary:disabled{opacity:.65;cursor:wait}
+.watch-ad-secondary{background:#182338;border:1px solid #34445e;color:#d6e2f4}
+.watch-ad-footnote{margin:16px 0 0!important;font-size:.75rem!important;color:#8194b3!important}
+@media(max-width:420px){.watch-ad-gate{padding:12px}.watch-ad-gate-card{max-height:calc(100dvh - 24px);border-radius:20px;padding:24px 18px}.watch-ad-gate-icon{width:54px;height:54px;border-radius:17px}}
