@@ -7,7 +7,7 @@
 <meta name="description" content="Tonton media di Jsvidey.">
 <title>Tonton Video — Jsvidey</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-<link rel="stylesheet" href="css/watch.css?v=20261026-watch-single-player-v3">
+<link rel="stylesheet" href="css/watch.css?v=20261028-ad-gate-v1">
 <link rel="stylesheet" href="css/navbar.css?v=20261025-watch-audit-fix-v10">
 <link rel="stylesheet" href="css/footer.css?v=20261025-watch-audit-fix-v10">
 <link rel="stylesheet" href="css/admin-bug-monitor.css?v=20261025-admin-bug-monitor-v1">
@@ -16,6 +16,24 @@
 </head>
 <body data-page="watch">
 <div id="navbarMount"></div>
+<div id="watchAdGate" class="watch-ad-gate" hidden role="dialog" aria-modal="true" aria-labelledby="watchAdGateTitle">
+  <section class="watch-ad-gate-card">
+    <div class="watch-ad-gate-icon"><i class="fa-solid fa-rectangle-ad"></i></div>
+    <p class="watch-ad-gate-eyebrow">JS VIDEY • WATCH</p>
+    <h2 id="watchAdGateTitle">Lanjut nonton iklan dulu</h2>
+    <p id="watchAdGateMessage">Bantu dukung Jsvidey dengan membuka iklan singkat sebelum menonton.</p>
+    <div id="adsterraWatchSlot" class="watch-ad-slot" aria-label="Iklan"></div>
+    <p id="watchAdGateLoading" class="watch-ad-loading" hidden><i class="fa-solid fa-circle-notch fa-spin"></i> Memproses, tunggu 2 detik…</p>
+    <div class="watch-ad-gate-actions">
+      <button id="watchAdNow" class="watch-ad-primary" type="button"><i class="fa-solid fa-play"></i> Watch Now</button>
+      <a id="watchAdLogin" class="watch-ad-primary" href="/login.html" hidden><i class="fa-solid fa-right-to-bracket"></i> Masuk Sekarang</a>
+      <a id="watchAdUpgrade" class="watch-ad-primary" href="/vip.html" hidden><i class="fa-solid fa-crown"></i> Upgrade Akun</a>
+      <button id="watchAdClose" class="watch-ad-secondary" type="button" hidden>Nanti</button>
+    </div>
+    <p id="watchAdGateFootnote" class="watch-ad-footnote">Iklan akan tampil maksimal 3 kali untuk pengunjung yang belum login.</p>
+  </section>
+</div>
+
 <div id="watchEntryNotice" class="watch-entry-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="watchEntryTitle">
   <section class="watch-entry-card">
     <img id="watchEntryThumbnail" class="watch-entry-thumbnail" alt="Thumbnail video" hidden>
@@ -95,6 +113,7 @@
 <script src="js/footer.js?v=20261025-watch-audit-fix-v10"></script>
 <script src="js/watch.js?v=20261026-watch-single-player-v3"></script>
 <script src="js/watch-social.js?v=20261026-watch-single-player-v3"></script>
+<script src="js/watch-ad-gate.js?v=20261028-ad-gate-v1"></script>
 
 <script src="js/monetization.js?v=20261025-monetization-touch-safe-v1"></script>
 <link rel="stylesheet" href="/css/support-widget.css?v=20261025-support-polish-v2"><script src="/js/support-widget.js?v=20261025-support-polish-v2"></script>
