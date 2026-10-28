@@ -46,6 +46,8 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
    closeEntryNotice();
    try {
      showEmbed(selected.video_url,selected.title);
+     const playbackType = classify(selected.video_url).direct ? 'video' : 'embed';
+     window.dispatchEvent(new CustomEvent('jsvidey:player-started', {detail:{kind:playbackType,url:selected.video_url}}));
      if(player && !player.hidden) {
        // Keep playback initiation in the original click gesture for mobile Safari.
        player.load();

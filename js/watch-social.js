@@ -508,99 +508,110 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     }[ch]));
   }
 
+  async function loadVideoMetrics() {
+    const set = (id, value) => { const el = $(id); if (el) el.textContent = Number(value || 0).toLocaleString('id-ID'); };
+    if (!videoId) return;
+    const id = videoId;
+    const [viewsResult, socialResult] = await Promise.allSettled([
+      withTimeout(db.rpc('jsvidey_get_video_view_counts', { p_video_ids: [id] }), 10000, 'Total view terlalu lama dimuat.'),
+      withTimeout(db.rpc('jsvidey_get_video_social_counts', { p_video_ids: [id] }), 10000, 'Statistik sosial terlalu lama dimuat.')
+    ]);
+    if (viewsResult.status === 'fulfilled' && !viewsResult.value.error) {
+      const row = (viewsResult.value.data || []).find(v => String(v.video_id) === String(id));
+      set('watchTotalViews', row?.view_count || 0);
+    } else { const el = $('watchTotalViews'); if (el) el.textContent = '—'; }
+    if (socialResult.status === 'fulfilled' && !socialResult.value.error) {
+      const row = (socialResult.value.data || []).find(v => String(v.video_id) === String(id)) || {};
+      set('watchTotalLikes', row.like_count);
+      set('watchTotalComments', row.comment_count);
+      set('watchTotalShares', row.share_count);
+    } else {
+      ['watchTotalLikes','watchTotalComments','watchTotalShares'].forEach(id => { const el=$(id); if(el)el.textContent='—'; });
+    }
+  }
+
   async function loadRelatedVideos() {
     const grid = $('relatedVideoGrid');
     if (!grid) return;
-    // Never leave the initial spinner on screen indefinitely.
     try {
-      // Use the same public-safe catalog RPC as Home, Categories and Dashboard.
-      // This keeps VIP/Premium videos visible as locked cards instead of hiding them.
       const { data, error } = await withTimeout(
         db.rpc('jsvidey_catalog_videos'), 12000,
         'Katalog video melewati batas 12 detik. Pastikan RPC jsvidey_catalog_videos tersedia di Supabase.'
       );
       if (error) throw error;
       const rows = (data || []).filter(row =>
-        row.id !== videoId && (!videoSlug || row.slug !== videoSlug)
-      ).slice(0, 12);
+        String(row.id) !== String(videoId) && (!videoSlug || row.slug !== videoSlug)
+      );
       if (!rows.length) {
         grid.innerHTML = '<p class="related-loading">Belum ada video lainnya.</p>';
         return;
       }
-
-      // Render the catalog first; social count failures must not block the cards.
-      const ids = rows.map(row => row.id);
-      let counts = new Map();
-      grid.replaceChildren();
-      for (const row of rows) {
-        const stats = counts.get(row.id) || {};
-        const href = row.slug
-          ? '/v/' + encodeURIComponent(row.slug)
-          : '/watch.html?id=' + encodeURIComponent(row.id);
-        const card = document.createElement('a');
-        card.className = 'related-card';
-        card.href = href;
-        const thumb = document.createElement('div');
-        thumb.className = 'related-thumb';
-        const thumbnailUrl = normalizeThumbnailUrl(row.thumbnail_url || row.thumbnail || row.thumbnailUrl || row.thumbnail_url_public || '');
-        if (thumbnailUrl) {
-          const img = document.createElement('img');
-          img.src = thumbnailUrl;
-          img.alt = row.title ? 'Thumbnail ' + row.title : 'Thumbnail video';
-          img.loading = 'lazy';
-          img.referrerPolicy = 'no-referrer';
-          img.onerror = () => {
-            img.onerror = null;
-            const original = String(row.thumbnail_url || row.thumbnail || row.thumbnailUrl || '');
-            if (original && original !== thumbnailUrl) img.src = original;
-            else { img.remove(); thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>'; }
-          };
-          thumb.append(img);
-        } else {
-          thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>';
-        }
-        const copy = document.createElement('div');
-        copy.className = 'related-copy';
-        const title = document.createElement('div');
-        title.className = 'related-title';
-        title.textContent = row.title || 'Video tanpa judul';
-        const statLine = document.createElement('div');
-        statLine.className = 'related-stats';
-        const like = document.createElement('span');
-        like.innerHTML = '<i class="fa-solid fa-heart" aria-hidden="true"></i> ' + (counts.size ? Number(stats.like_count || 0) : '—') + ' Like';
-        const comments = document.createElement('span');
-        comments.innerHTML = '<i class="fa-solid fa-comment" aria-hidden="true"></i> ' + (counts.size ? Number(stats.comment_count || 0) : '—') + ' Komentar';
-        const shares = document.createElement('span');
-        shares.innerHTML = '<i class="fa-solid fa-share-nodes" aria-hidden="true"></i> ' + (counts.size ? Number(stats.share_count || 0) : '—') + ' Bagikan';
-        statLine.append(like, comments, shares);
-        copy.append(title, statLine);
-        card.append(thumb, copy);
-        grid.append(card);
-      }
-
-      // Cards are visible already; update their counts only if the optional RPC works.
-      try {
-        const { data: countRows, error: countError } = await withTimeout(
-          db.rpc('jsvidey_get_video_social_counts', { p_video_ids: ids }),
-          12000, 'Statistik video lainnya terlalu lama dimuat.'
-        );
-        if (countError) throw countError;
-        if (Array.isArray(countRows)) {
-          counts = new Map(countRows.map(row => [row.video_id, row]));
-          const cards = [...grid.querySelectorAll('.related-card')];
-          rows.forEach((row, index) => {
-            const stats = counts.get(row.id);
-            const statLine = cards[index]?.querySelector('.related-stats');
-            const spans = statLine?.querySelectorAll('span');
-            if (!stats || !spans || spans.length < 3) return;
-            spans[0].textContent = '♥ ' + Number(stats.like_count || 0) + ' Like';
-            spans[1].textContent = '▢ ' + Number(stats.comment_count || 0) + ' Komentar';
-            spans[2].textContent = '↗ ' + Number(stats.share_count || 0) + ' Bagikan';
+      const pageSize = 12;
+      let currentPage = 1;
+      const totalPages = Math.ceil(rows.length / pageSize);
+      async function renderPage(page) {
+        currentPage = Math.max(1, Math.min(totalPages, page));
+        const start = (currentPage - 1) * pageSize;
+        const pageRows = rows.slice(start, start + pageSize);
+        const ids = pageRows.map(row => row.id).filter(Boolean);
+        let socialMap = new Map(), viewMap = new Map();
+        grid.replaceChildren();
+        const cards = [];
+        for (const row of pageRows) {
+          const href = row.slug ? '/v/' + encodeURIComponent(row.slug) : '/watch.html?id=' + encodeURIComponent(row.id);
+          const card = document.createElement('a');
+          card.className = 'related-card'; card.href = href;
+          const thumb = document.createElement('div'); thumb.className = 'related-thumb';
+          const thumbnailUrl = normalizeThumbnailUrl(row.thumbnail_url || row.thumbnail || row.thumbnailUrl || row.thumbnail_url_public || '');
+          if (thumbnailUrl) {
+            const img = document.createElement('img'); img.src = thumbnailUrl;
+            img.alt = row.title ? 'Thumbnail ' + row.title : 'Thumbnail video'; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+            img.onerror = () => { img.remove(); if (!thumb.querySelector('.related-placeholder')) thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>'; };
+            thumb.append(img);
+          } else thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>';
+          const copy = document.createElement('div'); copy.className = 'related-copy';
+          const title = document.createElement('div'); title.className = 'related-title'; title.textContent = row.title || 'Video tanpa judul';
+          const stats = document.createElement('div'); stats.className = 'related-stats';
+          [['view','View'],['like','Like'],['comment','Komentar'],['share','Share']].forEach(([key,label]) => {
+            const span = document.createElement('span'); span.dataset.stat = key;
+            const icons = {view:'fa-eye',like:'fa-heart',comment:'fa-comment',share:'fa-share-nodes'};
+            const icon = document.createElement('i'); icon.className = 'fa-solid ' + icons[key]; icon.setAttribute('aria-hidden','true');
+            span.append(icon, document.createTextNode(' … ' + label)); stats.append(span);
           });
+          copy.append(title, stats); card.append(thumb, copy); grid.append(card); cards.push(card);
         }
-      } catch (countError) {
-        console.warn('Related video counts unavailable; cards remain visible.', countError);
+        try {
+          const [social, views] = await Promise.all([
+            withTimeout(db.rpc('jsvidey_get_video_social_counts', { p_video_ids: ids }), 10000, 'Statistik sosial terlalu lama dimuat.'),
+            withTimeout(db.rpc('jsvidey_get_video_view_counts', { p_video_ids: ids }), 10000, 'Total view terlalu lama dimuat.')
+          ]);
+          if (!social.error) socialMap = new Map((social.data || []).map(row => [String(row.video_id), row]));
+          if (!views.error) viewMap = new Map((views.data || []).map(row => [String(row.video_id), Number(row.view_count || 0)]));
+        } catch (err) { console.warn('Related video counters unavailable:', err); }
+        pageRows.forEach((row, index) => {
+          const card = cards[index]; if (!card) return;
+          const social = socialMap.get(String(row.id)) || {};
+          const stats = card.querySelectorAll('[data-stat]');
+          stats.forEach(el => {
+            const key = el.dataset.stat;
+            const count = key === 'view' ? viewMap.get(String(row.id)) : key === 'like' ? social.like_count : key === 'comment' ? social.comment_count : social.share_count;
+            const label = key === 'view' ? 'View' : key === 'like' ? 'Like' : key === 'comment' ? 'Komentar' : 'Share';
+            const icon = el.querySelector('i');
+            el.replaceChildren(icon, document.createTextNode(' ' + Number(count || 0).toLocaleString('id-ID') + ' ' + label));
+          });
+        });
+        if (totalPages > 1) {
+          const nav = document.createElement('nav'); nav.className = 'related-pagination'; nav.setAttribute('aria-label','Halaman video lainnya');
+          const prev = document.createElement('button'); prev.type='button'; prev.className='related-page-btn'; prev.textContent='‹'; prev.disabled=currentPage===1; prev.setAttribute('aria-label','Halaman sebelumnya'); prev.addEventListener('click',()=>{renderPage(currentPage-1);$('relatedVideosSection')?.scrollIntoView({behavior:'smooth',block:'start'});}); nav.append(prev);
+          const maxButtons = 5;
+          let from = Math.max(1, currentPage - Math.floor(maxButtons/2));
+          let to = Math.min(totalPages, from + maxButtons - 1); from = Math.max(1, to - maxButtons + 1);
+          for(let n=from;n<=to;n++){const b=document.createElement('button');b.type='button';b.className='related-page-btn';b.textContent=String(n);if(n===currentPage)b.setAttribute('aria-current','page');b.addEventListener('click',()=>{renderPage(n);$('relatedVideosSection')?.scrollIntoView({behavior:'smooth',block:'start'});});nav.append(b);}
+          const next = document.createElement('button'); next.type='button'; next.className='related-page-btn'; next.textContent='›'; next.disabled=currentPage===totalPages; next.setAttribute('aria-label','Halaman berikutnya'); next.addEventListener('click',()=>{renderPage(currentPage+1);$('relatedVideosSection')?.scrollIntoView({behavior:'smooth',block:'start'});}); nav.append(next);
+          const label = document.createElement('span'); label.className='related-loading'; label.textContent=`Halaman ${currentPage} dari ${totalPages}`; nav.append(label); grid.append(nav);
+        }
       }
+      await renderPage(1);
     } catch (error) {
       console.error('Related videos failed to load:', error);
       const detail = error?.message || 'Periksa migrasi SQL katalog dan izin akses Supabase.';
@@ -614,7 +625,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       if (likeButton) likeButton.disabled = false;
       if (favoriteButton) favoriteButton.disabled = false;
       if (commentSubmitButton) commentSubmitButton.disabled = false;
-      const results = await Promise.allSettled([loadLikes(), loadComments(), loadFavorite()]);
+      const results = await Promise.allSettled([loadLikes(), loadComments(), loadFavorite(), loadVideoMetrics()]);
       const failed = results.filter(result => result.status === 'rejected');
       if (failed.length) {
         console.error('Some social features could not initialize:', failed.map(result => result.reason));

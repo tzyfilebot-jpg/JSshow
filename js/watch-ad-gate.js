@@ -1,54 +1,56 @@
-/* Jsvidey Watch Adsterra gate. Ad code is loaded only after a deliberate Watch Now click. */
+/* Jsvidey Watch gate: guest prompt at 10s / 25% / 25s; logged-in users are exempt. */
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
   const modal = $('watchAdGate');
   if (!modal) return;
-  const title = $('watchAdGateTitle');
-  const message = $('watchAdGateMessage');
-  const nowBtn = $('watchAdNow');
-  const login = $('watchAdLogin');
-  const upgrade = $('watchAdUpgrade');
-  const close = $('watchAdClose');
-  const loading = $('watchAdGateLoading');
-  const footnote = $('watchAdGateFootnote');
+  const title = $('watchAdGateTitle'), message = $('watchAdGateMessage');
+  const nowBtn = $('watchAdNow'), login = $('watchAdLogin');
+  const upgrade = $('watchAdUpgrade'), close = $('watchAdClose');
+  const loading = $('watchAdGateLoading'), footnote = $('watchAdGateFootnote');
   const slot = $('adsterraWatchSlot');
   const url = 'https://ordvxiydkxbtahjpseph.supabase.co';
-  const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yZHZ4aXlka3hidGFoanBzZXBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MDM3MjMsImV4cCI6MjEwODE3OTcyM30.PCruI7EeLyagV_PMyCd57s3N9oYcL41k-fEgwE8G60E';
-  let attempts = 0, timer = null, busy = false, userSignedIn = false, finished = false;
+  const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
+  // Use the site's public anon key; keep this aligned with the other page scripts.
+  const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbGciOiJIUzI1NiIsInR5cCI6MTc5MjYwMzcyMywiZXhwIjoyMTA4MTc5NzIzfQ.PCruI7EeLyagV_PMyCd57s3N9oYcL41k-fEgwE8G60E';
   const nextUrl = location.pathname + location.search;
-  const loginUrl = '/login.html?next=' + encodeURIComponent(nextUrl);
-  login.href = loginUrl;
-  function show() {
-    if (finished) return;
-    modal.hidden = false;
-    document.body.style.overflow = 'hidden';
+  login.href = '/login.html?next=' + encodeURIComponent(nextUrl);
+  let signedIn = false, authChecked = false, pendingPlayback = null, gateShown = false, busy = false, finished = false;
+  let player = $('player'), iframe = $('embedPlayer'), frame = $('embedFrame');
+  let activeKind = '', activeUrl = '', timer = null, playbackTimer = null, timeHandler = null;
+  let savedTime = 0, wasPlaying = false, iframeWasVisible = false;
+  function hide() { modal.hidden = true; document.body.style.overflow = ''; }
+  function pauseAtGate() {
+    player = $('player'); iframe = $('embedPlayer'); frame = $('embedFrame');
+    wasPlaying = !!(player && !player.hidden && !player.paused);
+    savedTime = player && !player.hidden ? Number(player.currentTime || 0) : 0;
+    if (player && !player.hidden) { try { player.pause(); } catch (_) {} }
+    iframeWasVisible = !!(frame && !frame.hidden);
+    // Cross-origin embeds cannot be paused/read from JS; unload it while the modal is open.
+    if (iframeWasVisible && iframe) iframe.src = 'about:blank';
   }
-  function hide() {
-    modal.hidden = true;
-    document.body.style.overflow = '';
-  }
-  function setMode(mode) {
-    nowBtn.hidden = mode !== 'ad';
-    login.hidden = mode !== 'login';
-    upgrade.hidden = mode !== 'upgrade';
-    close.hidden = mode === 'login';
-    loading.hidden = true;
-    if (mode === 'ad') {
-      title.textContent = 'Lanjut nonton iklan dulu';
-      message.textContent = 'Bantu dukung Jsvidey dengan membuka iklan singkat sebelum menonton.';
-      footnote.textContent = `Iklan ${attempts + 1} dari 3 untuk pengunjung yang belum login.`;
-    } else if (mode === 'login') {
-      title.textContent = 'Lanjut menonton tanpa iklan berikutnya';
-      message.textContent = 'Kamu sudah menyelesaikan 3 kesempatan iklan. Masuk atau daftar untuk melanjutkan.';
-      login.textContent = 'Lanjut tanpa iklan · Masuk Sekarang';
-      footnote.textContent = 'Setelah masuk, kamu bisa melanjutkan pengalaman menonton.';
-    } else {
-      title.textContent = 'Upgrade Akun untuk Menonton Tanpa Iklan';
-      message.textContent = 'Tingkatkan akunmu untuk menikmati pengalaman menonton yang lebih nyaman.';
-      upgrade.textContent = 'Upgrade Akun';
-      footnote.textContent = 'Pengingat ini hanya muncul satu kali pada halaman Watch ini.';
+  function resumeAfterAd(restart) {
+    player = $('player'); iframe = $('embedPlayer'); frame = $('embedFrame');
+    if (activeKind === 'video' && player && !player.hidden) {
+      try { player.currentTime = restart ? 0 : savedTime; } catch (_) {}
+      if (wasPlaying || restart) player.play().catch(() => {});
+    } else if (iframeWasVisible && iframe && frame) {
+      iframe.src = activeUrl; // Cross-origin embeds resume from the beginning.
+      frame.hidden = false;
     }
+    wasPlaying = false; iframeWasVisible = false;
+  }
+  function showGate() {
+    if (signedIn || gateShown || finished || busy) return;
+    gateShown = true;
+    pauseAtGate();
+    title.textContent = 'Lanjut menonton?';
+    message.textContent = 'Tonton iklan untuk melanjutkan menonton, atau login untuk melanjutkan tanpa iklan.';
+    nowBtn.hidden = false; login.hidden = false; upgrade.hidden = true; close.hidden = false;
+    close.textContent = 'Ulangi Video';
+    nowBtn.disabled = false; loading.hidden = true;
+    footnote.textContent = 'Notifikasi muncul setelah 10 detik, atau saat mencapai 25% durasi / 25 detik.';
+    modal.hidden = false; document.body.style.overflow = 'hidden';
   }
   function loadAdsterra() {
     if (!slot) return;
@@ -63,66 +65,80 @@
     script.src = 'https://brijmohan.org/21/9d5f79baa8e59d6c69ccbbb496662e1b';
     slot.appendChild(script);
   }
-  function scheduleNext() {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      if (attempts < 3) {
-        setMode('ad');
-      } else {
-        setMode('login');
-      }
-      show();
-    }, 10000);
-  }
   nowBtn.addEventListener('click', () => {
-    if (busy || finished) return;
-    busy = true;
-    nowBtn.disabled = true;
-    loading.hidden = false;
+    if (busy || signedIn || finished) return;
+    busy = true; nowBtn.disabled = true; loading.hidden = false;
     loading.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Memproses, tunggu 2 detik…';
     loadAdsterra();
     setTimeout(() => {
-      attempts += 1;
-      busy = false;
-      nowBtn.disabled = false;
+      busy = false; gateShown = true;
       hide();
-      scheduleNext();
+      resumeAfterAd(false);
     }, 2000);
   });
   close.addEventListener('click', () => {
-    finished = true;
     if (timer) clearTimeout(timer);
+    if (playbackTimer) clearTimeout(playbackTimer);
     hide();
-  });
-  modal.addEventListener('click', e => {
-    if (e.target === modal && !login.hidden) return;
-  });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !modal.hidden && !login.hidden) e.preventDefault();
+    gateShown = false;
+    resumeAfterAd(true);
+    attachPlaybackGate();
   });
   upgrade.addEventListener('click', () => { finished = true; });
+  modal.addEventListener('click', e => { if (e.target === modal) { /* require an explicit choice */ } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) e.preventDefault(); });
+
+  function attachPlaybackGate() {
+    if (signedIn || finished || gateShown) return;
+    if (timer) clearTimeout(timer);
+    if (playbackTimer) clearTimeout(playbackTimer);
+    // The 10-second gate applies even when an embed does not expose playback progress.
+    timer = setTimeout(showGate, 10000);
+    player = $('player');
+    if (player) {
+      if (timeHandler) {
+        player.removeEventListener('timeupdate', timeHandler);
+        player.removeEventListener('loadedmetadata', timeHandler);
+      }
+      timeHandler = () => {
+        if (signedIn || gateShown || finished || player.hidden || !Number.isFinite(player.duration)) return;
+        if (player.currentTime >= 25 || (player.duration > 0 && player.currentTime >= player.duration * 0.25)) showGate();
+      };
+      player.addEventListener('timeupdate', timeHandler);
+      player.addEventListener('loadedmetadata', timeHandler);
+    }
+    // Cross-origin iframes cannot expose duration/time; 25 seconds is the safe fallback.
+    playbackTimer = setTimeout(showGate, 25000);
+  }
+  window.addEventListener('jsvidey:player-started', e => {
+    pendingPlayback = e.detail || {};
+    activeKind = pendingPlayback.kind || 'embed';
+    activeUrl = pendingPlayback.url || window.__sourceVideoUrl || '';
+    gateShown = false;
+    if (authChecked && !signedIn) attachPlaybackGate();
+  });
   (async () => {
     try {
       if (window.supabase?.createClient) {
-        const db = window.supabase.createClient(url, key, {
+        const db = window.jsvideySupabaseClient || window.supabase.createClient(url, anonKey, {
           auth: { persistSession: true, autoRefreshToken: true, storageKey: 'sb-ordvxiydkxbtahjpseph-auth-token' }
         });
         const { data } = await db.auth.getSession();
-        userSignedIn = Boolean(data?.session?.user);
+        signedIn = Boolean(data?.session?.user);
       }
     } catch (_) {}
-    if (userSignedIn) {
+    authChecked = true;
+    if (pendingPlayback && !signedIn) attachPlaybackGate();
+    // No ad modal for logged-in users. This prompt is informational only.
+    if (signedIn) {
       timer = setTimeout(() => {
         if (finished) return;
-        setMode('upgrade');
-        show();
+        title.textContent = 'Upgrade Akun untuk Menonton Tanpa Iklan';
+        message.textContent = 'Nikmati pengalaman menonton tanpa iklan dengan meningkatkan akunmu.';
+        nowBtn.hidden = true; login.hidden = true; close.hidden = true; upgrade.hidden = false;
+        footnote.textContent = 'Pengingat upgrade ditampilkan satu kali pada halaman Watch.';
+        modal.hidden = false; document.body.style.overflow = 'hidden';
       }, 15000);
-    } else {
-      timer = setTimeout(() => {
-        if (finished) return;
-        setMode('ad');
-        show();
-      }, 900);
     }
   })();
 })();
