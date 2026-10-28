@@ -294,3 +294,50 @@ video{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;bac
 .related-page-label{width:100%;text-align:center;color:#8096b7;font-size:.72rem;margin-top:4px}
 @media(min-width:760px){.related-video-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}.related-video-grid .related-title{font-size:.88rem}}
 @media(max-width:620px){.related-videos{padding:14px;border-radius:19px;margin-top:25px}.related-heading{margin-bottom:17px}.related-upgrade-card{gap:10px;padding:12px;border-radius:14px;flex-wrap:wrap}.related-upgrade-icon{width:38px;height:38px;flex-basis:38px;border-radius:12px;font-size:1rem}.related-upgrade-copy{flex-basis:calc(100% - 52px)}.related-upgrade-copy strong{font-size:.91rem}.related-upgrade-copy span{font-size:.74rem}.related-upgrade-action{margin-left:48px;padding:8px 10px;font-size:.7rem}.related-video-carousel{gap:10px}.related-video-carousel .related-card{flex-basis:clamp(155px,43vw,205px)}.related-video-grid{gap:9px}.related-copy{padding:9px}.related-title{font-size:.78rem}.related-stats{gap:6px;font-size:.61rem}.related-stats i{font-size:.62rem}.related-banner-slot{padding:10px 3px;margin:16px auto 20px}}
+
+
+/* Membership lock: show a clean thumbnail + access message inside the player,
+   not a floating generic error notification. */
+.player-stage.access-locked{min-height:clamp(380px,56vw,560px);background:#03050a}
+.player-stage .watch-access-notice{position:absolute;inset:0;z-index:8;width:100%;height:100%;min-height:0;margin:0;padding:clamp(15px,3vw,28px);overflow-y:auto;justify-content:center;border:0;border-radius:0;background:linear-gradient(180deg,rgba(4,8,16,.48),rgba(4,8,16,.94)),radial-gradient(ellipse at top,#19365a,#070b14 76%);box-shadow:none}
+.player-stage .watch-access-thumbnail{width:min(100%,520px);max-height:clamp(110px,28vw,220px);aspect-ratio:16/9;object-fit:cover;border-radius:14px;border:1px solid #5b7191;background:#060b13;flex:0 1 auto}
+.player-stage .watch-access-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:14px;background:#1c3c5d;color:#7dd7ff;font-size:1.15rem}
+.player-stage .watch-access-notice>strong{font-size:clamp(1.05rem,3.2vw,1.4rem)}
+.player-stage .watch-access-notice>p{max-width:480px}
+.player-stage .watch-access-actions{width:min(100%,420px)}
+@media(max-width:600px){
+ .player-stage.access-locked{min-height:clamp(390px,118vw,500px)}
+ .player-stage .watch-access-notice{padding:16px 14px;gap:10px}
+ .player-stage .watch-access-thumbnail{max-height:clamp(110px,34vw,165px)}
+ .player-stage .watch-access-actions{flex-direction:row}
+ .player-stage .watch-access-cta,.player-stage .watch-access-secondary{flex:1;padding:0 14px}
+}
+
+
+/* Responsive Watch-page Adsterra placements */
+.watch-inline-ad{width:min(100%,728px);height:auto;min-height:90px;margin:16px auto;display:flex;justify-content:center;align-items:flex-start;overflow:hidden;text-align:center;position:relative;z-index:1}
+.watch-inline-ad:empty{display:none}
+.watch-inline-ad iframe{max-width:100%;border:0}
+.related-banner-slot{min-height:50px;display:flex;justify-content:center;align-items:flex-start}
+.related-banner-slot:empty{display:none}
+.related-banner-slot iframe{max-width:100%;border:0}
+.watch-ad-screen[hidden],.watch-ad-gate[hidden]{display:none!important}
+.watch-ad-screen{position:fixed;inset:0;z-index:11000;background:rgba(0,0,0,.97);display:flex;align-items:center;justify-content:center;padding:12px;overflow:auto}
+.watch-ad-screen-slot{width:160px;height:600px;max-width:100%;display:flex;justify-content:center;align-items:center;overflow:hidden;background:#080808}
+.watch-ad-screen-slot iframe{max-width:100%;border:0}
+.watch-ad-screen-close{position:fixed;right:9px;top:8px;z-index:11002;width:30px;height:30px;border:1px solid #ffffff50;border-radius:50%;background:#101827e8;color:#fff;font-size:22px;line-height:1;cursor:pointer}
+.watch-ad-gate{z-index:11001}
+.watch-ad-gate-card{width:min(100%,420px);padding:25px 22px;border-radius:22px}
+.watch-ad-gate-icon,.watch-ad-footnote,.watch-ad-slot{display:none!important}
+.watch-ad-gate-card h2{margin-top:0}
+.watch-upgrade-ticker{position:sticky;top:0;z-index:9000;overflow:hidden;background:linear-gradient(90deg,#12315a,#183d68);border-bottom:1px solid #3e6d9b;text-align:center;padding:10px 12px}
+.watch-upgrade-ticker[hidden]{display:none!important}
+.watch-upgrade-ticker a{display:inline-block;color:#fff;font-size:.82rem;font-weight:800;text-decoration:none;white-space:nowrap;animation:watch-upgrade-marquee 18s linear infinite}
+@keyframes watch-upgrade-marquee{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+@media(max-width:760px){
+ .watch-inline-ad{width:100%;height:40px;min-height:40px;margin:12px auto}
+ .watch-inline-ad iframe{max-width:100%;transform:scale(.42);transform-origin:top center}
+ .watch-ad-screen{padding:10px}
+ .watch-ad-screen-slot{transform:scale(min(1, calc((100vw - 32px) / 160)));transform-origin:center center}
+}
+@media(prefers-reduced-motion:reduce){.watch-upgrade-ticker a{animation:none}}
