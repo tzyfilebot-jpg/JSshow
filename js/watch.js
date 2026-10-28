@@ -70,7 +70,9 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
  function setRatio(mode){if(frame){frame.classList.toggle('landscape',mode==='landscape');frame.classList.toggle('portrait',mode==='portrait');}ratioButtons.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.ratio===mode)));}
  ratioButtons.forEach(b=>b.addEventListener('click',()=>setRatio(b.dataset.ratio)));
  function fail(message){
-   if(state){state.hidden=false;state.classList.add('error');state.textContent=message;}
+   // Keep lookup/provider errors inline under the video title; do not show a
+   // floating overlay over the player.
+   if(state){state.hidden=true;state.classList.remove('error','watch-access-state');state.textContent='';}
    const status=$('statusText');if(status)status.textContent=message;
  }
  function classify(raw){
@@ -208,46 +210,51 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
      const access=await watchWithTimeout(db.rpc('jsvidey_video_access_status',{p_video_id:record.id||videoId||null,p_slug:record.slug||videoSlug||null}),8000,'Pemeriksaan akses video terlalu lama.');
      if(!access.error){accessInfo=Array.isArray(access.data)?access.data[0]:access.data;}
    } catch(accessError) { console.warn('Video access check unavailable:',accessError); }
-   const rawAudience=String(accessInfo?.audience||record.audience||record.access_level||record.visibility||record.tier||'public').toLowerCase();
-   const rawCategory=String(accessInfo?.category||record.category||'').toLowerCase();
-   const isPremium=rawAudience.includes('premium');
-   const isVip=rawAudience==='vip'||rawCategory.startsWith('server');
-   const membershipVideo=isVip||isPremium||rawAudience==='members';
-   const accessRequired=Boolean(accessInfo && accessInfo.allowed===false) || (!record.video_url && membershipVideo);
+   const rawAudience=String(accessInfo?.audience||record.audience||record.access_level||record.visibility||record.tier||'public').trim().toLowerCase();
+   const rawCategory=String(accessInfo?.category||record.category||'').trim().toLowerCase();
+   const isPremium=rawAudience.includes('premium')||rawCategory.includes('premium');
+   const isVip=!isPremium&&(rawAudience==='vip'||rawAudience.includes('vip')||rawCategory.startsWith('server'));
+   const isLoginRequired=!isVip&&!isPremium&&(
+     ['members','member','login','login_required','registered','account','basic','basic_login'].includes(rawAudience) ||
+     rawAudience.includes('login') || rawAudience.includes('member') || rawAudience.includes('account')
+   );
+   const membershipVideo=isVip||isPremium||isLoginRequired;
+   const accessRequired=(Boolean(accessInfo && accessInfo.allowed===false) && membershipVideo) || (!record.video_url && membershipVideo);
    if(accessRequired){
-     const premium=isPremium;
-     const tierLabel=premium?'Video Premium':(isVip?'Video VIP':'Video khusus anggota');
+     const tierLabel=isPremium?'Video Premium':(isVip?'Video VIP':(isLoginRequired?'Video Memerlukan Akun Login':'Video Memerlukan Akun Login'));
      const message=tierLabel;
      let signedIn=false;
      try { const auth=await watchWithTimeout(db.auth.getSession(),5000,''); signedIn=Boolean(auth?.data?.session?.user); } catch (_) {}
      const next=location.pathname+location.search;
      const loginUrl='/login.html?next='+encodeURIComponent(next);
      const registerUrl='/register.html?next='+encodeURIComponent(next);
+     const upgradeUrl=isPremium?'/vip.html?plan=premium':'/vip.html?plan=vip';
      const actions=signedIn
-       ? '<a class="watch-access-cta" href="/vip.html"><i class="fa-solid fa-crown"></i> Upgrade</a>'
+       ? '<a class="watch-access-cta" href="'+upgradeUrl+'"><i class="fa-solid fa-crown"></i> Upgrade '+(isPremium?'Premium':(isVip?'VIP':'Akun'))+'</a>'
        : '<a class="watch-access-cta" href="'+loginUrl+'"><i class="fa-solid fa-right-to-bracket"></i> Login</a><a class="watch-access-secondary" href="'+registerUrl+'"><i class="fa-solid fa-user-plus"></i> Daftar</a>';
      const accessBox=$('watchAccessNotice');
      if(accessBox){
        const rawThumb=normalizeThumbnailUrl(record.thumbnail_url||record.thumbnail||record.thumbnailUrl||record.thumbnail_url_public||'');
-       const accessDescription=premium
-         ? 'Silahkan Login Dan Jadi Member Premium Untuk melihat Semua Video Premium Yang lebih menarik Lain nya.'
+       const accessDescription=isPremium
+         ? 'Silahkan Login Dan Jadi Member Premium Untuk melihat Semua Video Premium Yang lebih menarik dan lebih luas Dan Bisa Akses Semua Video.'
          : (isVip
            ? 'Silahkan Login Dan Jadi Member VIP Untuk melihat Semua Video VIP Yang lebih menarik Lain nya.'
-           : 'Silahkan login atau daftar terlebih dahulu untuk melihat video khusus anggota.');
+           : 'Silahkan Login Dan Untuk menonton Video tersebut.');
        accessBox.innerHTML=(rawThumb?'<img class="watch-access-thumbnail" alt="Thumbnail video" src="'+rawThumb.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'">':'')+
-         '<div class="watch-access-icon"><i class="fa-solid fa-crown"></i></div><strong>'+message+'</strong><p>'+accessDescription+'</p><div class="watch-access-actions">'+actions+'</div><small class="watch-access-provider-note">Pemutaran mengikuti izin dan dukungan embed penyedia media.</small>';
+         '<div class="watch-access-icon"><i class="fa-solid '+(isPremium?'fa-gem':(isVip?'fa-crown':'fa-lock'))+'"></i></div><strong>'+message+'</strong><p>'+accessDescription+'</p><div class="watch-access-actions">'+actions+'</div>';
        accessBox.hidden=false;
        const img=accessBox.querySelector('img'); if(img)img.onerror=()=>img.remove();
      }
      const titleEl=$('videoTitle'); if(titleEl)titleEl.textContent=record.title||'Video Jsvidey';
-     const status=$('statusText'); if(status)status.textContent=message;
+     const status=$('statusText'); if(status)status.textContent='';
      if(state){state.hidden=true;state.classList.remove('error','watch-access-state');}
      if(entryNotice)entryNotice.hidden=true;
-     const stage=$('player')?.parentElement; if(stage){if(frame){frame.hidden=true;iframe.removeAttribute('src');}if(player){player.pause();player.removeAttribute('src');player.hidden=true;}}
-     const accessThumb=accessBox?.querySelector('.watch-access-thumbnail');
+     const stage=$('player')?.parentElement;
+     if(stage){stage.classList.add('access-locked');if(frame){frame.hidden=true;iframe.removeAttribute('src');}if(player){player.pause();player.removeAttribute('src');player.hidden=true;}}
      return;
    }
    const accessBox=$('watchAccessNotice'); if(accessBox){accessBox.hidden=true;accessBox.replaceChildren();}
+   const playerStage=$('player')?.parentElement;if(playerStage)playerStage.classList.remove('access-locked');
    if(!record.video_url){fail('Tautan video belum tersedia.');return;}
    videoId=record.id;
    window.__jsvideyVideoId=record.id;

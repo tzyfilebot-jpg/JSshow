@@ -1,144 +1,204 @@
-/* Jsvidey Watch gate: guest prompt at 10s / 25% / 25s; logged-in users are exempt. */
+/* JSShow Watch monetization and guest ad gate.
+   Ad network scripts are loaded only into visible slots. Popunder is initialized once per page/session
+   rather than repeatedly re-injecting the same provider script every few seconds. */
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const modal = $('watchAdGate');
-  if (!modal) return;
+  const SUPABASE_URL = 'https://ordvxiydkxbtahjpseph.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbGciOiJIUzI1NiIsInJlZiI6Im9yZHZ4aXlka3hidGFoanBzZXBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MDM3MjMsImV4cCI6MjEwODE3OTcyM30.PCruI7EeLyagV_PMyCd57s3N9oYcL41k-fEgwE8G60E';
+  const SOCIAL_SRC = 'https://brijmohan.org/14/57202f289afd48d4d1ed5e246ce84208';
+  const POPUNDER_SRC = 'https://ahuramazda.org/1/ac71832b0a31a9127f2edee0b96828bb';
+  const modal = $('watchAdGate'), screen = $('watchAdScreen');
+  if (!modal || !screen) return;
   const title = $('watchAdGateTitle'), message = $('watchAdGateMessage');
-  const nowBtn = $('watchAdNow'), login = $('watchAdLogin');
-  const upgrade = $('watchAdUpgrade'), close = $('watchAdClose');
-  const loading = $('watchAdGateLoading'), footnote = $('watchAdGateFootnote');
-  const slot = $('adsterraWatchSlot');
-  const url = 'https://ordvxiydkxbtahjpseph.supabase.co';
-  const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
-  // Use the site's public anon key; keep this aligned with the other page scripts.
-  const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbGciOiJIUzI1NiIsInR5cCI6MTc5MjYwMzcyMywiZXhwIjoyMTA4MTc5NzIzfQ.PCruI7EeLyagV_PMyCd57s3N9oYcL41k-fEgwE8G60E';
+  const nowBtn = $('watchAdNow'), login = $('watchAdLogin'), upgrade = $('watchAdUpgrade');
+  const closeBtn = $('watchAdClose'), loading = $('watchAdGateLoading');
+  const screenSlot = $('watchAdScreenSlot'), screenClose = $('watchAdScreenClose');
+  let db = null, user = null, plan = 'free', adsAllowed = true, authReady = false;
+  let player = $('player'), iframe = $('embedPlayer'), frame = $('embedFrame');
+  let activeKind = '', activeUrl = '', savedTime = 0, wasPlaying = false, iframeWasVisible = false;
+  let adCount = 0, busy = false, promptOpen = false, screenOpen = false, finished = false;
+  let cycleTimer = null, promptTimer = null, playbackStarted = false;
   const nextUrl = location.pathname + location.search;
   login.href = '/login.html?next=' + encodeURIComponent(nextUrl);
-  let signedIn = false, authChecked = false, pendingPlayback = null, gateShown = false, busy = false, finished = false;
-  let player = $('player'), iframe = $('embedPlayer'), frame = $('embedFrame');
-  let activeKind = '', activeUrl = '', timer = null, playbackTimer = null, timeHandler = null;
-  let savedTime = 0, wasPlaying = false, iframeWasVisible = false;
-  function hide() { modal.hidden = true; document.body.style.overflow = ''; }
-  function pauseAtGate() {
+
+  function hidePrompt() { modal.hidden = true; document.body.style.overflow = ''; promptOpen = false; }
+  function pauseVideo() {
     player = $('player'); iframe = $('embedPlayer'); frame = $('embedFrame');
     wasPlaying = !!(player && !player.hidden && !player.paused);
     savedTime = player && !player.hidden ? Number(player.currentTime || 0) : 0;
     if (player && !player.hidden) { try { player.pause(); } catch (_) {} }
     iframeWasVisible = !!(frame && !frame.hidden);
-    // Cross-origin embeds cannot be paused/read from JS; unload it while the modal is open.
     if (iframeWasVisible && iframe) iframe.src = 'about:blank';
   }
-  function resumeAfterAd(restart) {
+  function resumeVideo(restart = false) {
     player = $('player'); iframe = $('embedPlayer'); frame = $('embedFrame');
     if (activeKind === 'video' && player && !player.hidden) {
       try { player.currentTime = restart ? 0 : savedTime; } catch (_) {}
       if (wasPlaying || restart) player.play().catch(() => {});
     } else if (iframeWasVisible && iframe && frame) {
-      iframe.src = activeUrl; // Cross-origin embeds resume from the beginning.
+      iframe.src = activeUrl;
       frame.hidden = false;
     }
     wasPlaying = false; iframeWasVisible = false;
   }
-  function showGate() {
-    if (signedIn || gateShown || finished || busy) return;
-    gateShown = true;
-    pauseAtGate();
-    title.textContent = 'Lanjut menonton?';
-    message.textContent = 'Tonton iklan untuk melanjutkan menonton, atau login untuk melanjutkan tanpa iklan.';
-    nowBtn.hidden = false; login.hidden = false; upgrade.hidden = true; close.hidden = false;
-    close.textContent = 'Ulangi Video';
-    nowBtn.disabled = false; loading.hidden = true;
-    footnote.textContent = 'Notifikasi muncul setelah 10 detik, atau saat mencapai 25% durasi / 25 detik.';
-    modal.hidden = false; document.body.style.overflow = 'hidden';
+  function addScript(src, id) {
+    if (id && document.getElementById(id)) return Promise.resolve();
+    return new Promise(resolve => {
+      const s = document.createElement('script');
+      if (id) s.id = id;
+      s.async = true; s.setAttribute('data-cfasync', 'false'); s.src = src;
+      s.onload = () => resolve(); s.onerror = () => resolve();
+      setTimeout(resolve, 2500);
+      document.body.appendChild(s);
+    });
   }
-  function loadAdsterra() {
-    if (!slot) return;
+  function loadAdUnit(slot, key, width, height) {
+    if (!slot || slot.dataset.adLoaded === '1') return Promise.resolve();
+    slot.dataset.adLoaded = '1';
     slot.replaceChildren();
-    const container = document.createElement('div');
-    container.id = 'container-9d5f79baa8e59d6c69ccbbb496662e1b';
-    container.style.cssText = 'width:100%;max-width:100%;min-height:0;overflow:hidden;';
-    slot.appendChild(container);
-    const script = document.createElement('script');
-    script.async = true;
-    script.setAttribute('data-cfasync', 'false');
-    script.src = 'https://brijmohan.org/21/9d5f79baa8e59d6c69ccbbb496662e1b';
-    slot.appendChild(script);
+    slot.style.setProperty('--ad-width', width + 'px');
+    slot.style.setProperty('--ad-height', height + 'px');
+    const options = document.createElement('script');
+    options.text = `window.atOptions = ${JSON.stringify({key, format:'iframe', height, width, params:{}})};`;
+    slot.appendChild(options);
+    return new Promise(resolve => {
+      const s = document.createElement('script');
+      s.async = true; s.setAttribute('data-cfasync','false');
+      s.src = 'https://brijmohan.org/22/' + key;
+      s.onload = () => resolve(); s.onerror = () => resolve();
+      setTimeout(resolve, 2500);
+      slot.appendChild(s);
+    });
   }
-  nowBtn.addEventListener('click', () => {
-    if (busy || signedIn || finished) return;
+  async function loadBannerAds() {
+    // Top and bottom 728x90 leaderboard units.
+    await loadAdUnit($('watchAdAbovePlayer'), '3141a4f24ed6a3e4353abd22e9d1ee2d', 728, 90);
+    await loadAdUnit($('watchAdBelowPlayer'), '3141a4f24ed6a3e4353abd22e9d1ee2d', 728, 90);
+    // Inline related-video placements; use the 300x250 unit once and the 320x50 unit once.
+    await loadAdUnit($('relatedAdTop'), '8121f37c9d72c5a783b49a164290ed39', 300, 250);
+    await loadAdUnit($('relatedAdMiddle'), '395e8278d34b195fc638caf9be3c095a', 320, 50);
+  }
+  async function loadFullscreenAd() {
+    if (!screenSlot) return;
+    screenSlot.replaceChildren();
+    screenSlot.style.setProperty('--ad-width','160px');
+    screenSlot.style.setProperty('--ad-height','600px');
+    const options = document.createElement('script');
+    options.text = `window.atOptions = ${JSON.stringify({key:'3e098c5e726febcf4069731a84e69010',format:'iframe',height:600,width:160,params:{}})};`;
+    screenSlot.appendChild(options);
+    await new Promise(resolve => {
+      const s = document.createElement('script');
+      s.async = true; s.setAttribute('data-cfasync','false');
+      s.src = 'https://brijmohan.org/22/3e098c5e726febcf4069731a84e69010';
+      s.onload = () => resolve(); s.onerror = () => resolve();
+      screenSlot.appendChild(s);
+      setTimeout(resolve, 2500);
+    });
+  }
+  function showPrompt() {
+    if (!adsAllowed || finished || promptOpen || screenOpen) return;
+    if (cycleTimer) clearTimeout(cycleTimer);
+    pauseVideo();
+    title.textContent = 'Tonton iklan dahulu atau login';
+    message.textContent = 'Untuk melanjutkan menonton, pilih Watch Now atau login ke akunmu.';
+    nowBtn.hidden = false; login.hidden = false; upgrade.hidden = true;
+    closeBtn.hidden = true; loading.hidden = true; nowBtn.disabled = false;
+    modal.hidden = false; promptOpen = true; document.body.style.overflow = 'hidden';
+  }
+  async function showScreenAd() {
+    if (!adsAllowed || finished || screenOpen || promptOpen) return;
+    if (cycleTimer) clearTimeout(cycleTimer);
+    pauseVideo();
+    screenOpen = true; screen.hidden = false; document.body.style.overflow = 'hidden';
+    await loadFullscreenAd();
+  }
+  function closeScreenAd() {
+    if (!screenOpen) return;
+    screen.hidden = true; screenOpen = false; document.body.style.overflow = '';
+    if (screenSlot) screenSlot.replaceChildren();
+    adCount++;
+    resumeVideo(false);
+    if (adCount >= 3) showPrompt();
+    else cycleTimer = setTimeout(showScreenAd, 10000);
+  }
+  screenClose.addEventListener('click', closeScreenAd);
+  nowBtn.addEventListener('click', async () => {
+    if (busy || !adsAllowed || finished) return;
     busy = true; nowBtn.disabled = true; loading.hidden = false;
-    loading.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Memproses, tunggu 2 detik…';
-    loadAdsterra();
-    setTimeout(() => {
-      busy = false; gateShown = true;
-      hide();
-      resumeAfterAd(false);
-    }, 2000);
+    loading.textContent = 'Menyiapkan iklan…';
+    // This popunder unit is intentionally loaded once per page visit; repeatedly
+    // re-injecting it every 5 seconds can create invalid impressions/popups.
+    await addScript(POPUNDER_SRC, 'jsv-watch-popunder-once');
+    hidePrompt();
+    resumeVideo(false);
+    busy = false; nowBtn.disabled = false; loading.hidden = true;
+    promptTimer = setTimeout(showPrompt, 15000);
   });
-  close.addEventListener('click', () => {
-    if (timer) clearTimeout(timer);
-    if (playbackTimer) clearTimeout(playbackTimer);
-    hide();
-    gateShown = false;
-    resumeAfterAd(true);
-    attachPlaybackGate();
-  });
+  closeBtn.addEventListener('click', () => { hidePrompt(); resumeVideo(true); cycleTimer = setTimeout(showScreenAd, 10000); });
   upgrade.addEventListener('click', () => { finished = true; });
-  modal.addEventListener('click', e => { if (e.target === modal) { /* require an explicit choice */ } });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) e.preventDefault(); });
-
-  function attachPlaybackGate() {
-    if (signedIn || finished || gateShown) return;
-    if (timer) clearTimeout(timer);
-    if (playbackTimer) clearTimeout(playbackTimer);
-    // The 10-second gate applies even when an embed does not expose playback progress.
-    timer = setTimeout(showGate, 10000);
-    player = $('player');
-    if (player) {
-      if (timeHandler) {
-        player.removeEventListener('timeupdate', timeHandler);
-        player.removeEventListener('loadedmetadata', timeHandler);
-      }
-      timeHandler = () => {
-        if (signedIn || gateShown || finished || player.hidden || !Number.isFinite(player.duration)) return;
-        if (player.currentTime >= 25 || (player.duration > 0 && player.currentTime >= player.duration * 0.25)) showGate();
-      };
-      player.addEventListener('timeupdate', timeHandler);
-      player.addEventListener('loadedmetadata', timeHandler);
-    }
-    // Cross-origin iframes cannot expose duration/time; 25 seconds is the safe fallback.
-    playbackTimer = setTimeout(showGate, 25000);
-  }
-  window.addEventListener('jsvidey:player-started', e => {
-    pendingPlayback = e.detail || {};
-    activeKind = pendingPlayback.kind || 'embed';
-    activeUrl = pendingPlayback.url || window.__sourceVideoUrl || '';
-    gateShown = false;
-    if (authChecked && !signedIn) attachPlaybackGate();
+  modal.addEventListener('click', e => { if (e.target === modal) e.preventDefault(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && (!modal.hidden || !screen.hidden)) e.preventDefault();
   });
-  (async () => {
+
+  function attachGuestCycle() {
+    if (!authReady || !adsAllowed || finished) return;
+    if (cycleTimer) clearTimeout(cycleTimer);
+    if (promptTimer) clearTimeout(promptTimer);
+    cycleTimer = setTimeout(showScreenAd, 10000);
+    // Guest ad sequence is time-based: first overlay after 10 seconds, then every 10 seconds.
+  }
+  function activePlan(profile) {
+    const p = String(profile?.plan || 'free').toLowerCase();
+    const expires = profile?.plan_expires_at ? Date.parse(profile.plan_expires_at) : null;
+    const active = !Number.isFinite(expires) || expires === null || expires > Date.now();
+    return active && ['vip','premium','pro'].includes(p);
+  }
+  async function resolveUserAndAds() {
     try {
       if (window.supabase?.createClient) {
-        const db = window.jsvideySupabaseClient || window.supabase.createClient(url, anonKey, {
-          auth: { persistSession: true, autoRefreshToken: true, storageKey: 'sb-ordvxiydkxbtahjpseph-auth-token' }
-        });
-        const { data } = await db.auth.getSession();
-        signedIn = Boolean(data?.session?.user);
+        db = window.jsvideySupabaseClient || (window.jsvideySupabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: { persistSession:true, autoRefreshToken:true, storageKey:'sb-ordvxiydkxbtahjpseph-auth-token' }
+        }));
+        const {data} = await db.auth.getSession();
+        user = data?.session?.user || null;
+        let profile = null;
+        if (user) {
+          try {
+            const result = await db.from('profiles').select('plan,plan_expires_at').eq('id',user.id).maybeSingle();
+            profile = result?.data || null;
+          } catch (_) {}
+        }
+        const paid = activePlan(profile);
+        plan = paid ? String(profile?.plan || '').toLowerCase() : 'free';
+        adsAllowed = !paid;
       }
-    } catch (_) {}
-    authChecked = true;
-    if (pendingPlayback && !signedIn) attachPlaybackGate();
-    // No ad modal for logged-in users. This prompt is informational only.
-    if (signedIn) {
-      timer = setTimeout(() => {
-        if (finished) return;
-        title.textContent = 'Upgrade Akun untuk Menonton Tanpa Iklan';
-        message.textContent = 'Nikmati pengalaman menonton tanpa iklan dengan meningkatkan akunmu.';
-        nowBtn.hidden = true; login.hidden = true; close.hidden = true; upgrade.hidden = false;
-        footnote.textContent = 'Pengingat upgrade ditampilkan satu kali pada halaman Watch.';
-        modal.hidden = false; document.body.style.overflow = 'hidden';
-      }, 15000);
+    } catch (_) { user = null; plan = 'free'; adsAllowed = true; }
+    authReady = true;
+    if (adsAllowed) await loadBannerAds();
+    if (user && adsAllowed) {
+      // Social bar appears twice for logged-in free accounts as requested.
+      await addScript(SOCIAL_SRC, 'jsv-watch-socialbar-free-1');
+      await addScript(SOCIAL_SRC, 'jsv-watch-socialbar-free-2');
+      // Start provider popunder once after page initialization, not by script-spamming every 5 seconds.
+      setTimeout(() => addScript(POPUNDER_SRC, 'jsv-watch-popunder-free-once'), 5000);
+      const ticker = $('watchUpgradeTicker');
+      if (ticker) ticker.hidden = false;
     }
-  })();
+    // VIP/Premium accounts do not load any Watch-page ads.
+  }
+  window.addEventListener('jsvidey:player-started', e => {
+    const d = e.detail || {};
+    activeKind = d.kind || 'embed'; activeUrl = d.url || window.__sourceVideoUrl || '';
+    playbackStarted = true;
+    if (authReady && !user) attachGuestCycle();
+  });
+  resolveUserAndAds().then(() => {
+    if (!user) {
+      const ticker = $('watchUpgradeTicker');
+      if (ticker) ticker.hidden = true;
+      if (playbackStarted) attachGuestCycle();
+    }
+  });
 })();
