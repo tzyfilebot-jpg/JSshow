@@ -229,3 +229,15 @@ video{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;bac
 .watch-ad-secondary{background:#182338;border:1px solid #34445e;color:#d6e2f4}
 .watch-ad-footnote{margin:16px 0 0!important;font-size:.75rem!important;color:#8194b3!important}
 @media(max-width:420px){.watch-ad-gate{padding:12px}.watch-ad-gate-card{max-height:calc(100dvh - 24px);border-radius:20px;padding:24px 18px}.watch-ad-gate-icon{width:54px;height:54px;border-radius:17px}}
+
+/* Total engagement counters on the Watch page */
+.watch-total-stats{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 8px}
+.watch-total-stats span{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#0b1423;color:#aebed7;font-size:.78rem}
+.watch-total-stats span i{color:var(--blue)}
+.watch-total-stats strong{color:#f4f7ff;font-variant-numeric:tabular-nums}
+.related-pagination{display:flex;justify-content:center;align-items:center;gap:7px;flex-wrap:wrap;padding:18px 0}
+.related-page-btn{min-width:38px;height:38px;padding:0 11px;border:1px solid var(--line);border-radius:10px;background:#101827;color:#dbe8fa;font-weight:750;cursor:pointer}
+.related-page-btn[aria-current="page"]{background:#267eff;border-color:#267eff;color:#fff}
+.related-page-btn:disabled{opacity:.45;cursor:not-allowed}
+.related-card .related-stats{display:flex;flex-wrap:wrap;gap:6px 10px}
+.related-card .related-stats span{font-size:.72rem;color:#9eb0ca}

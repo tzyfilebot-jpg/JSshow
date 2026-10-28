@@ -47,3 +47,5 @@ body{background:var(--bg);color:var(--text)}
 .vip-card-tag.premium-card-tag{background:linear-gradient(110deg,#7c3aed,#2563eb)}
 
 .fav-tier{display:inline-flex;margin-top:6px;padding:4px 8px;border-radius:999px;background:rgba(124,58,237,.14);color:#c4b5fd;font-size:.7rem;font-weight:800}
+
+.video-view-count{color:#d4e8ff!important;font-weight:700}.video-social-counts span{gap:5px}.video-social-counts{flex-wrap:wrap}.video-social-counts span{font-size:.72rem}
