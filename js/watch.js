@@ -130,7 +130,7 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
          4:'Sumber tidak dikenali sebagai format video yang didukung atau server menolak permintaan pemutar.'
        };
        const reason=reasons[errorCode] || 'Browser tidak dapat memuat sumber video.';
-       const msg='Video gagal diputar (kode '+(errorCode||'tidak tersedia')+'). '+reason;
+       const msg='Video gagal diputar (kode '+(errorCode||'tidak tersedia')+'). '+reason+(errorCode===4?' Periksa kolom URL Video di panel admin: gunakan URL MP4/WebM langsung yang publik atau URL embed resmi dari penyedia. Link halaman biasa, tautan yang memerlukan login, atau host yang melarang iframe tidak dapat diputar sebagai video langsung.':'');
        if(state){state.hidden=false;state.classList.add('error');state.textContent=msg;}
        const status=$('statusText');
        if(status){

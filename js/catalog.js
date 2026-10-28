@@ -31,7 +31,7 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    const date=v.created_at?new Date(v.created_at):null;
    const when=date&&!isNaN(date)?new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'}).format(date):'Video pilihan';
    const thumbUrl=normalizeThumbnail(v.thumbnail_url||v.thumbnail||v.thumbnailUrl);
-   const thumb=thumbUrl?`<img src="${escapeHTML(thumbUrl)}" alt="Thumbnail ${title}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:"";
+   const thumb=thumbUrl?`<img src="${escapeHTML(thumbUrl)}" alt="Thumbnail ${title}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='https://placehold.co/640x360/111827/e5e7eb?text=JSSHOW+VIDEO'">`:`<img src="https://placehold.co/640x360/111827/e5e7eb?text=JSSHOW+VIDEO" alt="Thumbnail belum tersedia" loading="lazy">`;
    const t=tier(v),premiumOnly=t==='premium',vipOnly=t==='vip',locked=(vipOnly&&!isVip)||(premiumOnly&&!isPremium)||(t==='basic'&&!isLoggedIn);
    const destination=locked?(premiumOnly?'vip.html?plan=premium':'vip.html?plan=vip'):link;
    const tierLabel=premiumOnly?'PREMIUM':vipOnly?'VIP':t==='basic'?'MEMBER':'BASIC';
