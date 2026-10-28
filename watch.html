@@ -7,7 +7,7 @@
 <meta name="description" content="Tonton media di Jsvidey.">
 <title>Tonton Video — Jsvidey</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-<link rel="stylesheet" href="css/watch.css?v=20261029-watch-stats-gate-v2">
+<link rel="stylesheet" href="css/watch.css?v=20261029-watch-layout-v3">
 <link rel="stylesheet" href="css/navbar.css?v=20261025-watch-audit-fix-v10">
 <link rel="stylesheet" href="css/footer.css?v=20261025-watch-audit-fix-v10">
 <link rel="stylesheet" href="css/admin-bug-monitor.css?v=20261025-admin-bug-monitor-v1">
@@ -107,8 +107,41 @@
     </section>
   </section>
   <section id="relatedVideosSection" class="related-videos" aria-label="Video lainnya">
-    <div class="social-section-title"><h2><i class="fa-solid fa-clapperboard"></i> Video Lainnya</h2><span>Video yang sudah dipublikasikan</span></div>
-    <div id="relatedVideoGrid" class="related-video-grid"><p class="related-loading">Memuat video lainnya…</p></div>
+    <div class="related-heading">
+      <div><span class="related-eyebrow">PILIHAN UNTUKMU</span><h2><i class="fa-solid fa-clapperboard"></i> Video Lainnya</h2><p>Temukan video menarik berikutnya.</p></div>
+    </div>
+
+    <section class="related-tier-section related-vip-section" aria-labelledby="relatedVipHeading">
+      <a class="related-upgrade-card vip-upgrade-card" href="/vip.html?plan=vip">
+        <span class="related-upgrade-icon"><i class="fa-solid fa-crown"></i></span>
+        <span class="related-upgrade-copy"><strong id="relatedVipHeading">Akses Video VIP</strong><span>Upgrade VIP untuk mendapatkan akses video VIP pilihan.</span></span>
+        <span class="related-upgrade-action">Upgrade VIP <i class="fa-solid fa-arrow-up-right-from-square"></i></span>
+      </a>
+      <div id="relatedVipCarousel" class="related-video-carousel"><p class="related-loading">Memuat video VIP…</p></div>
+    </section>
+
+    <aside id="relatedAdTop" class="related-banner-slot" aria-label="Iklan banner" hidden></aside>
+
+    <section class="related-tier-section related-basic-section" aria-labelledby="relatedBasicHeading">
+      <div class="related-subheading"><div><h3 id="relatedBasicHeading">Video Basic</h3><p>Video yang bisa kamu nikmati berikutnya.</p></div><span class="related-count" id="relatedBasicCount">0 video</span></div>
+      <div id="relatedBasicTopGrid" class="related-video-grid"><p class="related-loading">Memuat video basic…</p></div>
+    </section>
+
+    <section class="related-tier-section related-premium-section" aria-labelledby="relatedPremiumHeading">
+      <a class="related-upgrade-card premium-upgrade-card" href="/vip.html?plan=premium">
+        <span class="related-upgrade-icon"><i class="fa-solid fa-gem"></i></span>
+        <span class="related-upgrade-copy"><strong id="relatedPremiumHeading">Akses Semua Video Premium</strong><span>Upgrade Premium untuk mendapatkan akses ke semua video premium berkualitas.</span></span>
+        <span class="related-upgrade-action">Upgrade Premium <i class="fa-solid fa-arrow-up-right-from-square"></i></span>
+      </a>
+      <div id="relatedPremiumCarousel" class="related-video-carousel"><p class="related-loading">Memuat video Premium…</p></div>
+    </section>
+
+    <aside id="relatedAdMiddle" class="related-banner-slot" aria-label="Iklan banner" hidden></aside>
+
+    <section class="related-tier-section related-basic-more" aria-label="Video Basic lainnya">
+      <div id="relatedBasicBottomGrid" class="related-video-grid"></div>
+    </section>
+    <nav id="relatedPagination" class="related-pagination" aria-label="Halaman video lainnya" hidden></nav>
   </section>
 </main>
 
@@ -118,7 +151,7 @@
 <script src="js/navbar.js?v=20261025-watch-audit-fix-v10"></script>
 <script src="js/footer.js?v=20261025-watch-audit-fix-v10"></script>
 <script src="js/watch.js?v=20261029-watch-stats-gate-v2"></script>
-<script src="js/watch-social.js?v=20261029-watch-stats-gate-v2"></script>
+<script src="js/watch-social.js?v=20261029-watch-layout-v3"></script>
 <script src="js/watch-ad-gate.js?v=20261029-watch-stats-gate-v2"></script>
 
 <script src="js/monetization.js?v=20261025-monetization-touch-safe-v1"></script>
