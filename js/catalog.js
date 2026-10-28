@@ -36,7 +36,7 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
    const destination=locked?(premiumOnly?'vip.html?plan=premium':'vip.html?plan=vip'):link;
    const tierLabel=premiumOnly?'PREMIUM':vipOnly?'VIP':t==='basic'?'MEMBER':'BASIC';
    const counts=v._social||{like_count:0,comment_count:0,share_count:0};
-   return `<a class="video-card ${t==='vip'||premiumOnly?'vip-video-card ':''}${page==='top-10-videos'?'ranked-video-card':''}" data-tier="${t}" ${page==='top-10-videos'?`data-rank="${i+1}"`:''} href="${destination}" aria-label="${locked?'Upgrade '+tierLabel+': ':'Tonton '}${title}"><div class="video-thumb" style="background:linear-gradient(135deg,hsl(${hue} 48% 22%),#24222f 65%,hsl(${(hue+45)%360} 40% 18%));position:relative">${thumb}<span class="video-badge">${escapeHTML(cat)}</span><span class="thumb-play"><i class="fa-solid ${locked?'fa-lock':'fa-play'}"></i></span><span class="video-duration">${tierLabel}</span></div><div class="video-details"><div class="video-title">${title}</div><div class="video-meta"><span><i class="fa-regular fa-clock"></i> ${when}</span><span>${locked?'Upgrade '+tierLabel:'Putar'}</span>${page==='top-10-videos'?`<span>${Number(v._viewCount||0)} tayangan</span>`:''}</div><div class="video-social-counts" aria-label="Statistik video"><span title="Like"><i class="fa-regular fa-thumbs-up"></i> ${Number(counts.like_count||0)}</span><span title="Komentar"><i class="fa-regular fa-comment"></i> ${Number(counts.comment_count||0)}</span><span title="Bagikan"><i class="fa-solid fa-share-nodes"></i> ${Number(counts.share_count||0)}</span></div></div></a>`;
+   return `<a class="video-card ${t==='vip'||premiumOnly?'vip-video-card ':''}${page==='top-10-videos'?'ranked-video-card':''}" data-tier="${t}" ${page==='top-10-videos'?`data-rank="${i+1}"`:''} href="${destination}" aria-label="${locked?'Upgrade '+tierLabel+': ':'Tonton '}${title}"><div class="video-thumb" style="background:linear-gradient(135deg,hsl(${hue} 48% 22%),#24222f 65%,hsl(${(hue+45)%360} 40% 18%));position:relative">${thumb}<span class="video-badge">${escapeHTML(cat)}</span><span class="thumb-play"><i class="fa-solid ${locked?'fa-lock':'fa-play'}"></i></span><span class="video-duration">${tierLabel}</span></div><div class="video-details"><div class="video-title">${title}</div><div class="video-meta"><span><i class="fa-regular fa-clock"></i> ${when}</span><span>${locked?'Upgrade '+tierLabel:'Putar'}</span><span class="video-view-count" title="Total tayangan"><i class="fa-regular fa-eye"></i> ${Number(v._viewCount??v.view_count??0).toLocaleString('id-ID')} tayangan</span></div><div class="video-social-counts" aria-label="Statistik video"><span title="Like"><i class="fa-regular fa-thumbs-up"></i> ${Number(counts.like_count||0)}</span><span title="Komentar"><i class="fa-regular fa-comment"></i> ${Number(counts.comment_count||0)}</span><span title="Bagikan"><i class="fa-solid fa-share-nodes"></i> ${Number(counts.share_count||0)}</span></div></div></a>`;
  }
  try{
    if(!window.supabase?.createClient)throw new Error('Library katalog belum dimuat.');
@@ -51,6 +51,19 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
      if(result.error)throw result.error;
      videos=result.data||[];
    }
+   // Load total views for every video card; aggregate only, never expose viewer identities.
+   try{
+     const ids=videos.map(v=>v.id).filter(Boolean);
+     if(ids.length){
+       const views=await db.rpc('jsvidey_get_video_view_counts',{p_video_ids:ids});
+       if(!views.error){
+         const map=new Map((views.data||[]).map(v=>[String(v.video_id),Number(v.view_count)||0]));
+         videos=videos.map(v=>({...v,_viewCount:map.has(String(v.id))?map.get(String(v.id)):Number(v._viewCount??v.view_count)||0}));
+       } else {
+         videos=videos.map(v=>({...v,_viewCount:Number(v._viewCount??v.view_count)||0}));
+       }
+     }
+   }catch(_){videos=videos.map(v=>({...v,_viewCount:Number(v._viewCount??v.view_count)||0}));}
    // Load aggregate counts without exposing user identities. Cards still render if counts RPC is not installed yet.
    try{
      const ids=videos.map(v=>v.id).filter(Boolean);
