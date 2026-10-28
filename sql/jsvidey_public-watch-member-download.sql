@@ -1,0 +1,7 @@
+-- Jsvidey access model: only published videos are exposed by the Edge Functions.
+-- Run after js videy dashboard and Backblaze upload migrations.
+-- This script intentionally does not make the videos table publicly selectable.
+-- Public playback is served only through create-b2-playback-url (published rows only).
+-- Downloads are served only through create-b2-download-url after auth.getUser().
+-- To publish a video after review, use the admin panel or run:
+-- update public.videos set status = 'published', updated_at = now() where id = '<VIDEO_UUID>';
