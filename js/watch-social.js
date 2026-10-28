@@ -531,91 +531,193 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   }
 
   async function loadRelatedVideos() {
-    const grid = $('relatedVideoGrid');
-    if (!grid) return;
+    const oldGrid = $('relatedVideoGrid');
+    const vipCarousel = $('relatedVipCarousel');
+    const premiumCarousel = $('relatedPremiumCarousel');
+    const basicTop = $('relatedBasicTopGrid');
+    const basicBottom = $('relatedBasicBottomGrid');
+    const pagination = $('relatedPagination');
+    if (!basicTop || !basicBottom || !vipCarousel || !premiumCarousel) {
+      if (oldGrid) oldGrid.innerHTML = '<p class="related-loading">Video lainnya belum tersedia.</p>';
+      return;
+    }
+    const safeTier = row => {
+      const audience = String(row.audience || row.access_level || row.membership || 'public').toLowerCase();
+      const category = String(row.category || '').toLowerCase();
+      if (audience === 'premium' || audience === 'pro' || category.includes('server premium')) return 'premium';
+      if (audience === 'vip' || /^server\s*vip/.test(category)) return 'vip';
+      return 'basic';
+    };
+    const escapeAttr = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const normalizeTierThumb = raw => {
+      const value = String(raw || '').trim();
+      if (!value) return '';
+      try {
+        const u = new URL(value, location.origin);
+        if (!/^https?:$/.test(u.protocol)) return '';
+        const host = u.hostname.toLowerCase();
+        if (host === 'drive.google.com' || host === 'docs.google.com') {
+          const id = (u.pathname.match(/\/file\/d\/([^/]+)/) || [])[1] || u.searchParams.get('id');
+          if (id) return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w1200';
+        }
+        return u.href;
+      } catch (_) { return ''; }
+    };
+    const tierLabel = tier => tier === 'premium' ? 'PREMIUM' : tier === 'vip' ? 'VIP' : 'BASIC';
+    const fmt = n => Number(n || 0).toLocaleString('id-ID');
+    const getStats = async rows => {
+      const ids = rows.map(row => row.id).filter(Boolean);
+      if (!ids.length) return { social: new Map(), views: new Map() };
+      const [socialResult, viewResult] = await Promise.all([
+        withTimeout(db.rpc('jsvidey_get_video_social_counts', { p_video_ids: ids }), 10000, 'Statistik sosial terlalu lama dimuat.').catch(error => ({error})),
+        withTimeout(db.rpc('jsvidey_get_video_view_counts', { p_video_ids: ids }), 10000, 'Total view terlalu lama dimuat.').catch(error => ({error}))
+      ]);
+      return {
+        social: !socialResult.error ? new Map((socialResult.data || []).map(row => [String(row.video_id), row])) : new Map(),
+        views: !viewResult.error ? new Map((viewResult.data || []).map(row => [String(row.video_id), Number(row.view_count || 0)])) : new Map()
+      };
+    };
+    const makeCard = (row, index, tier, allowed) => {
+      const card = document.createElement('a');
+      card.className = 'related-card related-tier-' + tier;
+      const isLocked = (tier === 'vip' && !allowed.vip) || (tier === 'premium' && !allowed.premium);
+      card.href = isLocked ? '/vip.html?plan=' + tier : (row.slug ? '/v/' + encodeURIComponent(row.slug) : '/watch.html?id=' + encodeURIComponent(row.id));
+      card.setAttribute('aria-label', (isLocked ? 'Upgrade ' + tierLabel(tier) + ': ' : 'Tonton: ') + (row.title || 'Video tanpa judul'));
+      const thumb = document.createElement('div'); thumb.className = 'related-thumb';
+      const thumbnail = normalizeTierThumb(row.thumbnail_url || row.thumbnail || row.thumbnailUrl);
+      if (thumbnail) {
+        const img = document.createElement('img'); img.src = thumbnail; img.alt = 'Thumbnail ' + (row.title || 'video'); img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+        img.onerror = () => { img.remove(); if (!thumb.querySelector('.related-placeholder')) thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>'; };
+        thumb.append(img);
+      } else thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>';
+      const badge = document.createElement('span'); badge.className = 'related-tier'; badge.textContent = isLocked ? '🔒 ' + tierLabel(tier) : tierLabel(tier);
+      thumb.append(badge);
+      const copy = document.createElement('div'); copy.className = 'related-copy';
+      const title = document.createElement('div'); title.className = 'related-title'; title.textContent = row.title || 'Video tanpa judul';
+      const stats = document.createElement('div'); stats.className = 'related-stats';
+      [['view','fa-eye','View'],['like','fa-heart','Like'],['comment','fa-comment','Komentar'],['share','fa-share-nodes','Share']].forEach(([key,icon,label])=>{
+        const span=document.createElement('span');span.dataset.stat=key;
+        const i=document.createElement('i');i.className='fa-solid '+icon;i.setAttribute('aria-hidden','true');
+        span.append(i,document.createTextNode(' … '+label));stats.append(span);
+      });
+      copy.append(title,stats);card.append(thumb,copy);return card;
+    };
+    const fillCards = async (container, rows, tier, allowed, emptyText) => {
+      container.replaceChildren();
+      if (!rows.length) {
+        if (emptyText) { const empty=document.createElement('p');empty.className='related-loading';empty.textContent=emptyText;container.append(empty); }
+        return;
+      }
+      const cards=rows.map((row,i)=>makeCard(row,i,tier,allowed));
+      cards.forEach(card=>container.append(card));
+      const {social,views}=await getStats(rows);
+      rows.forEach((row,index)=>{
+        const stats=cards[index]?.querySelectorAll('[data-stat]');if(!stats)return;
+        const s=social.get(String(row.id))||{};
+        stats.forEach(el=>{
+          const key=el.dataset.stat;
+          const count=key==='view'?views.get(String(row.id)):key==='like'?s.like_count:key==='comment'?s.comment_count:s.share_count;
+          const label=key==='view'?'View':key==='like'?'Like':key==='comment'?'Komentar':'Share';
+          const icon=el.querySelector('i');el.replaceChildren(icon,document.createTextNode(' '+fmt(count)+' '+label));
+        });
+      });
+    };
+    async function loadAdBanners() {
+      try {
+        const { data: config, error } = await withTimeout(db.rpc('jsvidey_public_platform_status'), 8000, 'Konfigurasi iklan belum tersedia.');
+        if (error || !config || !config.ads_enabled) return;
+        const { data: authData } = await db.auth.getUser().catch(()=>({data:{user:null}}));
+        if (authData?.user && config.ad_member_enabled === false) return;
+        if (!authData?.user && config.ad_guest_enabled === false) return;
+        const mobile = matchMedia('(max-width: 480px)').matches;
+        const code = mobile
+          ? (config.ad_mobile_banner_code || config.ad_banner468_code || config.ad_inline_rect_code || config.ad_inline_container_code)
+          : (config.ad_inline_rect_code || config.ad_inline_container_code || config.ad_top_code);
+        if (!code) return;
+        const renderAd = (slot, suffix) => {
+          if (!slot || slot.dataset.loaded === '1') return;
+          slot.dataset.loaded='1';slot.hidden=false;
+          const label=document.createElement('div');label.className='related-ad-label';label.textContent='IKLAN';slot.append(label);
+          const wrap=document.createElement('div');wrap.className='related-ad-frame-wrap';slot.append(wrap);
+          const frame=document.createElement('iframe');frame.title='Iklan';frame.loading='lazy';frame.referrerPolicy='strict-origin-when-cross-origin';
+          frame.setAttribute('sandbox','allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation');
+          const raw=String(code).replace(/<\/body/gi,'<\\/body');
+          const widthMatch=raw.match(/['"]width['"]\s*:\s*['"]?(\d+)/i);
+          const heightMatch=raw.match(/['"]height['"]\s*:\s*['"]?(\d+)/i);
+          const adWidth=Number(widthMatch?.[1])||300,adHeight=Number(heightMatch?.[1])||250;
+          frame.width=String(adWidth);frame.height=String(adHeight);
+          frame.style.width='min(100%, '+adWidth+'px)';frame.style.height=adHeight+'px';frame.style.border='0';frame.style.display='block';frame.style.margin='0 auto';
+          frame.srcdoc='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;width:100%;height:'+adHeight+'px;min-height:0;overflow:hidden;background:transparent}body{display:flex;justify-content:center;align-items:flex-start}iframe,img{max-width:100%;border:0}</style></head><body>'+raw+'</body></html>';
+          wrap.append(frame);
+        };
+        renderAd($('relatedAdTop'),'top');renderAd($('relatedAdMiddle'),'middle');
+      } catch (error) { console.warn('Banner iklan di Video Lainnya tidak dimuat:',error); }
+    }
     try {
       const { data, error } = await withTimeout(
         db.rpc('jsvidey_catalog_videos'), 12000,
         'Katalog video melewati batas 12 detik. Pastikan RPC jsvidey_catalog_videos tersedia di Supabase.'
       );
       if (error) throw error;
-      const rows = (data || []).filter(row =>
-        String(row.id) !== String(videoId) && (!videoSlug || row.slug !== videoSlug)
-      );
+      const rows=(data||[]).filter(row=>String(row.id)!==String(videoId)&&(!videoSlug||row.slug!==videoSlug));
       if (!rows.length) {
-        grid.innerHTML = '<p class="related-loading">Belum ada video lainnya.</p>';
+        [vipCarousel,premiumCarousel,basicTop,basicBottom].forEach(el=>{el.replaceChildren();const p=document.createElement('p');p.className='related-loading';p.textContent='Belum ada video lainnya.';el.append(p)});
+        if(pagination)pagination.hidden=true;
         return;
       }
-      const pageSize = 12;
-      let currentPage = 1;
-      const totalPages = Math.ceil(rows.length / pageSize);
-      async function renderPage(page) {
-        currentPage = Math.max(1, Math.min(totalPages, page));
-        const start = (currentPage - 1) * pageSize;
-        const pageRows = rows.slice(start, start + pageSize);
-        const ids = pageRows.map(row => row.id).filter(Boolean);
-        let socialMap = new Map(), viewMap = new Map();
-        grid.replaceChildren();
-        const cards = [];
-        for (const row of pageRows) {
-          const href = row.slug ? '/v/' + encodeURIComponent(row.slug) : '/watch.html?id=' + encodeURIComponent(row.id);
-          const card = document.createElement('a');
-          card.className = 'related-card'; card.href = href;
-          const thumb = document.createElement('div'); thumb.className = 'related-thumb';
-          const thumbnailUrl = normalizeThumbnailUrl(row.thumbnail_url || row.thumbnail || row.thumbnailUrl || row.thumbnail_url_public || '');
-          if (thumbnailUrl) {
-            const img = document.createElement('img'); img.src = thumbnailUrl;
-            img.alt = row.title ? 'Thumbnail ' + row.title : 'Thumbnail video'; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
-            img.onerror = () => { img.remove(); if (!thumb.querySelector('.related-placeholder')) thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>'; };
-            thumb.append(img);
-          } else thumb.innerHTML = '<span class="related-placeholder"><i class="fa-solid fa-circle-play"></i></span>';
-          const copy = document.createElement('div'); copy.className = 'related-copy';
-          const title = document.createElement('div'); title.className = 'related-title'; title.textContent = row.title || 'Video tanpa judul';
-          const stats = document.createElement('div'); stats.className = 'related-stats';
-          [['view','View'],['like','Like'],['comment','Komentar'],['share','Share']].forEach(([key,label]) => {
-            const span = document.createElement('span'); span.dataset.stat = key;
-            const icons = {view:'fa-eye',like:'fa-heart',comment:'fa-comment',share:'fa-share-nodes'};
-            const icon = document.createElement('i'); icon.className = 'fa-solid ' + icons[key]; icon.setAttribute('aria-hidden','true');
-            span.append(icon, document.createTextNode(' … ' + label)); stats.append(span);
-          });
-          copy.append(title, stats); card.append(thumb, copy); grid.append(card); cards.push(card);
+      const vipRows=rows.filter(row=>safeTier(row)==='vip').slice(0,10);
+      const premiumRows=rows.filter(row=>safeTier(row)==='premium').slice(0,10);
+      const basicRows=rows.filter(row=>safeTier(row)==='basic');
+      let isVip=false,isPremium=false;
+      try {
+        const {data:{user}}=await db.auth.getUser();
+        if(user){
+          const {data:profile}=await db.from('profiles').select('plan,plan_expires_at').eq('id',user.id).maybeSingle();
+          const plan=String(profile?.plan||'basic').toLowerCase();
+          const active=!profile?.plan_expires_at||new Date(profile.plan_expires_at)>new Date();
+          isVip=active&&['vip','premium','pro'].includes(plan);
+          isPremium=active&&['premium','pro'].includes(plan);
         }
-        try {
-          const [social, views] = await Promise.all([
-            withTimeout(db.rpc('jsvidey_get_video_social_counts', { p_video_ids: ids }), 10000, 'Statistik sosial terlalu lama dimuat.'),
-            withTimeout(db.rpc('jsvidey_get_video_view_counts', { p_video_ids: ids }), 10000, 'Total view terlalu lama dimuat.')
-          ]);
-          if (!social.error) socialMap = new Map((social.data || []).map(row => [String(row.video_id), row]));
-          if (!views.error) viewMap = new Map((views.data || []).map(row => [String(row.video_id), Number(row.view_count || 0)]));
-        } catch (err) { console.warn('Related video counters unavailable:', err); }
-        pageRows.forEach((row, index) => {
-          const card = cards[index]; if (!card) return;
-          const social = socialMap.get(String(row.id)) || {};
-          const stats = card.querySelectorAll('[data-stat]');
-          stats.forEach(el => {
-            const key = el.dataset.stat;
-            const count = key === 'view' ? viewMap.get(String(row.id)) : key === 'like' ? social.like_count : key === 'comment' ? social.comment_count : social.share_count;
-            const label = key === 'view' ? 'View' : key === 'like' ? 'Like' : key === 'comment' ? 'Komentar' : 'Share';
-            const icon = el.querySelector('i');
-            el.replaceChildren(icon, document.createTextNode(' ' + Number(count || 0).toLocaleString('id-ID') + ' ' + label));
-          });
-        });
-        if (totalPages > 1) {
-          const nav = document.createElement('nav'); nav.className = 'related-pagination'; nav.setAttribute('aria-label','Halaman video lainnya');
-          const prev = document.createElement('button'); prev.type='button'; prev.className='related-page-btn'; prev.textContent='‹'; prev.disabled=currentPage===1; prev.setAttribute('aria-label','Halaman sebelumnya'); prev.addEventListener('click',()=>{renderPage(currentPage-1);$('relatedVideosSection')?.scrollIntoView({behavior:'smooth',block:'start'});}); nav.append(prev);
-          const maxButtons = 5;
-          let from = Math.max(1, currentPage - Math.floor(maxButtons/2));
-          let to = Math.min(totalPages, from + maxButtons - 1); from = Math.max(1, to - maxButtons + 1);
-          for(let n=from;n<=to;n++){const b=document.createElement('button');b.type='button';b.className='related-page-btn';b.textContent=String(n);if(n===currentPage)b.setAttribute('aria-current','page');b.addEventListener('click',()=>{renderPage(n);$('relatedVideosSection')?.scrollIntoView({behavior:'smooth',block:'start'});});nav.append(b);}
-          const next = document.createElement('button'); next.type='button'; next.className='related-page-btn'; next.textContent='›'; next.disabled=currentPage===totalPages; next.setAttribute('aria-label','Halaman berikutnya'); next.addEventListener('click',()=>{renderPage(currentPage+1);$('relatedVideosSection')?.scrollIntoView({behavior:'smooth',block:'start'});}); nav.append(next);
-          const label = document.createElement('span'); label.className='related-loading'; label.textContent=`Halaman ${currentPage} dari ${totalPages}`; nav.append(label); grid.append(nav);
+      } catch (_) {}
+      const allowed={vip:isVip,premium:isPremium};
+      const pageSize=12, perPageTop=4;
+      const totalPages=Math.max(1,Math.ceil(basicRows.length/pageSize));
+      const renderBasicPage=async page=>{
+        const current=Math.max(1,Math.min(totalPages,page));
+        const pageRows=basicRows.slice((current-1)*pageSize,current*pageSize);
+        const topRows=pageRows.slice(0,perPageTop),bottomRows=pageRows.slice(perPageTop);
+        const count=$('relatedBasicCount');if(count)count.textContent=fmt(basicRows.length)+' video';
+        await Promise.all([
+          fillCards(basicTop,topRows,'basic',allowed,'Belum ada video Basic untuk bagian ini.'),
+          fillCards(basicBottom,bottomRows,'basic',allowed,'')
+        ]);
+        if(pagination){
+          pagination.replaceChildren();pagination.hidden=totalPages<=1;
+          if(totalPages>1){
+            const makeButton=(label,pageNo,disabled=false,current=false)=>{
+              const b=document.createElement('button');b.type='button';b.className='related-page-btn';b.textContent=label;b.disabled=disabled;
+              if(current)b.setAttribute('aria-current','page');
+              b.addEventListener('click',()=>{renderBasicPage(pageNo);$('relatedVideosSection')?.scrollIntoView({behavior:'smooth',block:'start'})});
+              pagination.append(b);
+            };
+            makeButton('‹',current-1,current===1);
+            const from=Math.max(1,Math.min(current-2,totalPages-4)),to=Math.min(totalPages,from+4);
+            for(let n=from;n<=to;n++)makeButton(String(n),n,false,n===current);
+            makeButton('›',current+1,current===totalPages);
+            const label=document.createElement('span');label.className='related-page-label';label.textContent='Halaman '+current+' dari '+totalPages;pagination.append(label);
+          }
         }
-      }
-      await renderPage(1);
-    } catch (error) {
-      console.error('Related videos failed to load:', error);
-      const detail = error?.message || 'Periksa migrasi SQL katalog dan izin akses Supabase.';
-      grid.innerHTML = '<p class="related-loading related-error">Video lainnya gagal dimuat. ' + safeText(detail) + '</p>';
+      };
+      await Promise.all([
+        fillCards(vipCarousel,vipRows,'vip',allowed,'Belum ada video VIP yang dipublikasikan.'),
+        fillCards(premiumCarousel,premiumRows,'premium',allowed,'Belum ada video Premium yang dipublikasikan.'),
+        renderBasicPage(1),loadAdBanners()
+      ]);
+    } catch(error) {
+      console.error('Related videos failed to load:',error);
+      const detail=error?.message||'Periksa migrasi SQL katalog dan izin akses Supabase.';
+      [vipCarousel,premiumCarousel,basicTop,basicBottom].forEach(el=>{if(el){el.replaceChildren();const p=document.createElement('p');p.className='related-loading related-error';p.textContent='Video lainnya gagal dimuat. '+detail;el.append(p)}});
+      if(pagination)pagination.hidden=true;
     }
   }
 
