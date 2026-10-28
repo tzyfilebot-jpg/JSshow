@@ -341,3 +341,11 @@ video{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;bac
  .watch-ad-screen-slot{transform:scale(min(1, calc((100vw - 32px) / 160)));transform-origin:center center}
 }
 @media(prefers-reduced-motion:reduce){.watch-upgrade-ticker a{animation:none}}
+
+/* Watch monetization update: the guest interstitial is full-screen and contains only the ad. */
+.watch-ad-screen{position:fixed!important;inset:0!important;width:100vw;height:100dvh;z-index:11000;background:#050505;display:flex;align-items:center;justify-content:center;padding:0!important;overflow:auto}
+.watch-ad-screen[hidden]{display:none!important}
+.watch-ad-screen-slot{width:100%!important;height:100%!important;max-width:none!important;display:flex;align-items:center;justify-content:center;overflow:auto;background:transparent!important}
+.watch-ad-screen-slot #container-9d5f79baa8e59d6c69ccbbb496662e1b{width:100%;min-height:250px}
+.watch-ad-screen-close{position:fixed;right:8px;top:8px;z-index:11002;width:26px;height:26px;min-width:26px;border-radius:50%;font-size:18px;line-height:1;background:#111c;color:#fff;border:1px solid #ffffff60}
+@media(max-width:760px){.watch-ad-screen-slot{transform:none!important}.watch-ad-screen-slot iframe{max-width:100%!important}}
