@@ -49,13 +49,15 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
      const playbackType = classify(selected.video_url).direct ? 'video' : 'embed';
      window.dispatchEvent(new CustomEvent('jsvidey:player-started', {detail:{kind:playbackType,url:selected.video_url}}));
      if(player && !player.hidden) {
-       // Keep playback initiation in the original click gesture for mobile Safari.
-       player.load();
+       // showEmbed() has already assigned src and called load(). Do not call
+       // load() a second time here: it can reset/abort the media request just
+       // before play() on mobile Safari.
        try {
          await player.play();
-       } catch (_) {
+       } catch (playError) {
          const status=$('statusText');
-         if(status)status.textContent='Video siap. Tekan tombol ▶ pada pemutar untuk mulai menonton.';
+         if(status)status.textContent='Video sudah disiapkan. Tekan tombol Play pada pemutar untuk mencoba lagi.';
+         console.warn('JSVidey playback did not start from the entry button:', playError);
        }
      }
    } catch(error) {
@@ -119,9 +121,36 @@ const watchWithTimeout=(promise,ms=12000,message='Permintaan ke Supabase terlalu
      iframe.removeAttribute('src');frame.hidden=true;
      player.pause();player.removeAttribute('src');player.hidden=false;player.controls=true;player.setAttribute('controls','');player.setAttribute('playsinline','');player.load();
      player.onerror=()=>{
-       const msg='Video gagal dimuat di pemutar JSSHOW. Pastikan URL MP4 aktif dan penyedia mengizinkan pemutaran dari website lain.';
+       const mediaError=player.error;
+       const errorCode=mediaError?.code || 0;
+       const reasons={
+         1:'Pemutaran dibatalkan sebelum selesai.',
+         2:'Browser gagal mengambil data video dari server sumber. Penyedia mungkin membatasi hotlink atau permintaan dari domain lain.',
+         3:'Data video diterima tetapi gagal didekode oleh browser.',
+         4:'Sumber tidak dikenali sebagai format video yang didukung atau server menolak permintaan pemutar.'
+       };
+       const reason=reasons[errorCode] || 'Browser tidak dapat memuat sumber video.';
+       const msg='Video gagal diputar (kode '+(errorCode||'tidak tersedia')+'). '+reason;
        if(state){state.hidden=false;state.classList.add('error');state.textContent=msg;}
-       const status=$('statusText');if(status)status.textContent=msg;
+       const status=$('statusText');
+       if(status){
+         status.textContent='';
+         const detail=document.createElement('span');
+         detail.textContent=msg+' Jika URL sumber bisa diputar langsung tetapi gagal di sini, minta penyedia mengizinkan embed/pemutaran dari domain jsshow.pages.dev atau gunakan URL embed resmi mereka.';
+         const link=document.createElement('a');
+         link.href=String(url);
+         link.target='_blank';
+         link.rel='noopener noreferrer';
+         link.textContent=' Buka sumber video langsung';
+         status.append(detail,link);
+       }
+       console.warn('JSVidey media playback error:', {
+         code:errorCode,
+         message:mediaError?.message || '',
+         networkState:player.networkState,
+         readyState:player.readyState,
+         currentSrc:player.currentSrc
+       });
      };
      player.onloadeddata=()=>{if(state){state.hidden=true;state.classList.remove('error');}};
      player.oncanplay=()=>{if(state){state.hidden=true;state.classList.remove('error');}};
