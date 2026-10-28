@@ -39,3 +39,11 @@
 .top10-grid .video-card:nth-child(3):before{background:#c78355;color:#26170d}
 @media(max-width:700px){.page-title-panel,.categories-heading-panel,.top10-heading-panel{padding:22px;margin-top:20px;align-items:flex-start}.page-title-panel{gap:15px}.page-title-icon{width:52px;height:52px;border-radius:15px}.top10-visual{display:none}.categories-heading-panel{flex-direction:column}.category-search-link{align-self:flex-start}.search-large{gap:9px;padding-left:13px}.search-large button{padding:12px}.live-ranking{display:none}}
 @media(max-width:420px){.search-large button{font-size:.8rem;padding:11px}.page-title-copy h1,.categories-heading-panel h1,.top10-heading-copy h1{font-size:2rem}}
+
+/* My Downloads thumbnail polish */
+.dl-thumb{position:relative;overflow:hidden;aspect-ratio:16/9;background:#111827;border-radius:12px;display:flex;align-items:center;justify-content:center}
+.dl-thumb img{display:block;width:100%;height:100%;object-fit:cover}
+.dl-card{align-items:stretch;gap:16px}
+.dl-copy{min-width:0;display:flex;flex-direction:column;justify-content:center;gap:9px}
+.dl-copy h2{overflow-wrap:anywhere;line-height:1.35}
+@media(max-width:600px){.dl-card{display:flex;flex-direction:column}.dl-thumb{width:100%}.dl-actions{flex-wrap:wrap}}

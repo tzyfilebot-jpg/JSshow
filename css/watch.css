@@ -349,3 +349,13 @@ video{display:block;width:100%;height:auto;max-height:none;aspect-ratio:auto;bac
 .watch-ad-screen-slot #container-9d5f79baa8e59d6c69ccbbb496662e1b{width:100%;min-height:250px}
 .watch-ad-screen-close{position:fixed;right:8px;top:8px;z-index:11002;width:26px;height:26px;min-width:26px;border-radius:50%;font-size:18px;line-height:1;background:#111c;color:#fff;border:1px solid #ffffff60}
 @media(max-width:760px){.watch-ad-screen-slot{transform:none!important}.watch-ad-screen-slot iframe{max-width:100%!important}}
+
+/* Upgrade ticker is intentionally placed after the watch content, not above the player. */
+.watch-upgrade-ticker{position:relative;z-index:2;display:block;width:min(100% - 32px,980px);margin:0 auto 24px;padding:11px 16px;overflow:hidden;border:1px solid rgba(83,200,255,.28);border-radius:12px;background:linear-gradient(90deg,#101827,#182443);text-align:center}
+.watch-upgrade-ticker[hidden]{display:none!important}
+.watch-upgrade-ticker a{display:inline-block;color:#dcecff;font-weight:750;text-decoration:none;animation:watchTickerMarquee 18s linear infinite}
+@keyframes watchTickerMarquee{0%{transform:translateX(45vw)}100%{transform:translateX(-45vw)}}
+@media(prefers-reduced-motion:reduce){.watch-upgrade-ticker a{animation:none}}
+.member-plan-links{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.premium-link{background:linear-gradient(135deg,#7c3aed,#4338ca)!important;color:#fff!important;border-color:#8b5cf6!important}
+.video-thumb img{width:100%;height:100%;object-fit:cover;display:block}
