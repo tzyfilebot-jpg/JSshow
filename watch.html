@@ -7,30 +7,29 @@
 <meta name="description" content="Tonton media di Jsvidey.">
 <title>Tonton Video — Jsvidey</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-<link rel="stylesheet" href="css/watch.css?v=20261029-watch-layout-v3">
+<link rel="stylesheet" href="css/watch.css?v=20261029-watch-monetization-v5">
 <link rel="stylesheet" href="css/navbar.css?v=20261025-watch-audit-fix-v10">
 <link rel="stylesheet" href="css/footer.css?v=20261025-watch-audit-fix-v10">
 <link rel="stylesheet" href="css/admin-bug-monitor.css?v=20261025-admin-bug-monitor-v1">
 <script src="js/admin-bug-monitor.js?v=20261025-admin-bug-monitor-v1"></script>
-<script async data-cfasync="false" src="https://ahuramazda.org/1/ac71832b0a31a9127f2edee0b96828bb"></script>
 </head>
 <body data-page="watch">
 <div id="navbarMount"></div>
+<div id="watchAdScreen" class="watch-ad-screen" hidden role="dialog" aria-modal="true" aria-label="Iklan">
+  <button id="watchAdScreenClose" class="watch-ad-screen-close" type="button" aria-label="Tutup iklan">×</button>
+  <div id="watchAdScreenSlot" class="watch-ad-screen-slot"></div>
+</div>
 <div id="watchAdGate" class="watch-ad-gate" hidden role="dialog" aria-modal="true" aria-labelledby="watchAdGateTitle">
   <section class="watch-ad-gate-card">
-    <div class="watch-ad-gate-icon"><i class="fa-solid fa-rectangle-ad"></i></div>
-    <p class="watch-ad-gate-eyebrow">JS VIDEY • WATCH</p>
-    <h2 id="watchAdGateTitle">Lanjut nonton iklan dulu</h2>
-    <p id="watchAdGateMessage">Bantu dukung Jsvidey dengan membuka iklan singkat sebelum menonton.</p>
-    <div id="adsterraWatchSlot" class="watch-ad-slot" aria-label="Iklan"></div>
-    <p id="watchAdGateLoading" class="watch-ad-loading" hidden><i class="fa-solid fa-circle-notch fa-spin"></i> Memproses, tunggu 2 detik…</p>
+    <h2 id="watchAdGateTitle">Tonton iklan untuk melanjutkan</h2>
+    <p id="watchAdGateMessage">Tonton iklan terlebih dahulu atau login untuk melanjutkan menonton.</p>
     <div class="watch-ad-gate-actions">
       <button id="watchAdNow" class="watch-ad-primary" type="button"><i class="fa-solid fa-play"></i> Watch Now</button>
-      <a id="watchAdLogin" class="watch-ad-primary" href="/login.html" hidden><i class="fa-solid fa-right-to-bracket"></i> Masuk Sekarang</a>
+      <a id="watchAdLogin" class="watch-ad-primary" href="/login.html"><i class="fa-solid fa-right-to-bracket"></i> Login</a>
       <a id="watchAdUpgrade" class="watch-ad-primary" href="/vip.html" hidden><i class="fa-solid fa-crown"></i> Upgrade Akun</a>
-      <button id="watchAdClose" class="watch-ad-secondary" type="button" hidden>Nanti</button>
+      <button id="watchAdClose" class="watch-ad-secondary" type="button" hidden>Tutup</button>
     </div>
-    <p id="watchAdGateFootnote" class="watch-ad-footnote">Iklan akan tampil maksimal 3 kali untuk pengunjung yang belum login.</p>
+    <p id="watchAdGateLoading" class="watch-ad-loading" hidden><i class="fa-solid fa-circle-notch fa-spin"></i> Memproses…</p>
   </section>
 </div>
 
@@ -42,17 +41,9 @@
   </section>
 </div>
 
+<div id="watchUpgradeTicker" class="watch-upgrade-ticker" hidden><a href="/vip.html">Upgrade akun ke VIP/Premium untuk menonton video tanpa iklan</a></div>
 <main class="watch-shell">
-  <div class="watch-kicker"><span class="live-dot"></span> JS VIDEY <span class="kicker-divider">/</span> VIDEO PLAYER</div><script>
-  atOptions = {
-    'key' : '876fd0d10f22e22c48c8143e11d59f62',
-    'format' : 'iframe',
-    'height' : 300,
-    'width' : 160,
-    'params' : {}
-  };
-</script>
-<script async src="https://brijmohan.org/22/876fd0d10f22e22c48c8143e11d59f62"></script>
+  <div class="watch-kicker"><span class="live-dot"></span> JS VIDEY <span class="kicker-divider">/</span> VIDEO PLAYER</div><aside id="watchAdAbovePlayer" class="watch-inline-ad" aria-label="Iklan"></aside>
   <section class="player-card" aria-label="Pemutar video">
     <div class="player-stage">
       <div id="watchPreview" class="watch-preview" hidden><img id="watchThumbnail" alt="Thumbnail video"><div class="watch-preview-shade"></div><button id="watchPlayButton" type="button"><i class="fa-solid fa-play"></i><span>Putar Video</span></button><p id="watchLoading" hidden><i class="fa-solid fa-circle-notch fa-spin"></i> Menyiapkan video…</p></div>
@@ -60,6 +51,7 @@
       <div class="ratio-tools" id="ratioTools" hidden aria-label="Atur ukuran video"><span>Ukuran media</span><button type="button" data-ratio="portrait" aria-pressed="true">Vertikal</button><button type="button" data-ratio="landscape" aria-pressed="false">Horizontal</button></div>
       <div class="embed-frame" id="embedFrame" hidden><iframe id="embedPlayer" title="Pemutar media tertanam" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
       <video id="player" controls playsinline preload="metadata" hidden></video>
+      <div id="watchAccessNotice" class="watch-access-notice" hidden aria-live="polite"></div>
     </div>
     <div class="video-info">
       <div class="video-label"><i class="fa-solid fa-circle-play"></i> SEDANG DIPUTAR</div>
@@ -71,20 +63,9 @@
         <span><i class="fa-solid fa-comment"></i> <strong id="watchTotalComments">0</strong> Komentar</span>
         <span><i class="fa-solid fa-share-nodes"></i> <strong id="watchTotalShares">0</strong> Share</span>
       </div>
-      <div id="watchAccessNotice" class="watch-access-notice" hidden aria-live="polite"></div>
-      <p class="hint"><i class="fa-solid fa-shield-halved"></i> Pemutaran mengikuti izin dan dukungan embed penyedia media.</p>
     </div>
   </section>
-  <script>
-  atOptions = {
-    'key' : '8121f37c9d72c5a783b49a164290ed39',
-    'format' : 'iframe',
-    'height' : 250,
-    'width' : 300,
-    'params' : {}
-  };
-</script>
-<script async src="https://brijmohan.org/22/8121f37c9d72c5a783b49a164290ed39"></script>
+  <aside id="watchAdBelowPlayer" class="watch-inline-ad" aria-label="Iklan"></aside>
   <section class="watch-social" aria-label="Interaksi video">
     <div class="social-section-title"><h2>Berinteraksi</h2><span>Bagikan keseruanmu</span></div>
     <div class="social-actions">
@@ -120,7 +101,7 @@
       <div id="relatedVipCarousel" class="related-video-carousel"><p class="related-loading">Memuat video VIP…</p></div>
     </section>
 
-    <aside id="relatedAdTop" class="related-banner-slot" aria-label="Iklan banner" hidden></aside>
+    <aside id="relatedAdTop" class="related-banner-slot" aria-label="Iklan banner"></aside>
 
     <section class="related-tier-section related-basic-section" aria-labelledby="relatedBasicHeading">
       <div class="related-subheading"><div><h3 id="relatedBasicHeading">Video Basic</h3><p>Video yang bisa kamu nikmati berikutnya.</p></div><span class="related-count" id="relatedBasicCount">0 video</span></div>
@@ -136,7 +117,7 @@
       <div id="relatedPremiumCarousel" class="related-video-carousel"><p class="related-loading">Memuat video Premium…</p></div>
     </section>
 
-    <aside id="relatedAdMiddle" class="related-banner-slot" aria-label="Iklan banner" hidden></aside>
+    <aside id="relatedAdMiddle" class="related-banner-slot" aria-label="Iklan banner"></aside>
 
     <section class="related-tier-section related-basic-more" aria-label="Video Basic lainnya">
       <div id="relatedBasicBottomGrid" class="related-video-grid"></div>
@@ -150,10 +131,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/navbar.js?v=20261025-watch-audit-fix-v10"></script>
 <script src="js/footer.js?v=20261025-watch-audit-fix-v10"></script>
-<script src="js/watch.js?v=20261029-watch-stats-gate-v2"></script>
-<script src="js/watch-social.js?v=20261029-watch-layout-v3"></script>
-<script src="js/watch-ad-gate.js?v=20261029-watch-stats-gate-v2"></script>
+<script src="js/watch.js?v=20261029-watch-monetization-v5"></script>
+<script src="js/watch-social.js?v=20261029-watch-monetization-v5"></script>
+<script src="js/watch-ad-gate.js?v=20261029-watch-monetization-v5"></script>
 
-<script src="js/monetization.js?v=20261025-monetization-touch-safe-v1"></script>
+<script src="js/monetization.js?v=20261029-watch-monetization-v5"></script>
 <link rel="stylesheet" href="/css/support-widget.css?v=20261025-support-polish-v2"><script src="/js/support-widget.js?v=20261025-support-polish-v2"></script>
-<script src="js/platform-guard.js?v=20261024-admin-controls"></script><script data-cfasync="false" src="https://brijmohan.org/14/57202f289afd48d4d1ed5e246ce84208"></script></body></html>
+<script src="js/platform-guard.js?v=20261024-admin-controls"></script></body></html>
