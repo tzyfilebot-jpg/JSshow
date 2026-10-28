@@ -7,7 +7,7 @@
 <meta name="description" content="Tonton media di Jsvidey.">
 <title>Tonton Video — Jsvidey</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-<link rel="stylesheet" href="css/watch.css?v=20261028-ad-gate-v1">
+<link rel="stylesheet" href="css/watch.css?v=20261029-watch-stats-gate-v2">
 <link rel="stylesheet" href="css/navbar.css?v=20261025-watch-audit-fix-v10">
 <link rel="stylesheet" href="css/footer.css?v=20261025-watch-audit-fix-v10">
 <link rel="stylesheet" href="css/admin-bug-monitor.css?v=20261025-admin-bug-monitor-v1">
@@ -65,6 +65,12 @@
       <div class="video-label"><i class="fa-solid fa-circle-play"></i> SEDANG DIPUTAR</div>
       <h1 id="videoTitle">Video Jsvidey</h1>
       <p id="statusText">Memuat media tertanam…</p>
+      <div class="watch-total-stats" id="watchTotalStats" aria-label="Statistik video">
+        <span><i class="fa-regular fa-eye"></i> <strong id="watchTotalViews">0</strong> View</span>
+        <span><i class="fa-solid fa-heart"></i> <strong id="watchTotalLikes">0</strong> Like</span>
+        <span><i class="fa-solid fa-comment"></i> <strong id="watchTotalComments">0</strong> Komentar</span>
+        <span><i class="fa-solid fa-share-nodes"></i> <strong id="watchTotalShares">0</strong> Share</span>
+      </div>
       <div id="watchAccessNotice" class="watch-access-notice" hidden aria-live="polite"></div>
       <p class="hint"><i class="fa-solid fa-shield-halved"></i> Pemutaran mengikuti izin dan dukungan embed penyedia media.</p>
     </div>
@@ -111,9 +117,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/navbar.js?v=20261025-watch-audit-fix-v10"></script>
 <script src="js/footer.js?v=20261025-watch-audit-fix-v10"></script>
-<script src="js/watch.js?v=20261026-watch-single-player-v3"></script>
-<script src="js/watch-social.js?v=20261026-watch-single-player-v3"></script>
-<script src="js/watch-ad-gate.js?v=20261028-ad-gate-v1"></script>
+<script src="js/watch.js?v=20261029-watch-stats-gate-v2"></script>
+<script src="js/watch-social.js?v=20261029-watch-stats-gate-v2"></script>
+<script src="js/watch-ad-gate.js?v=20261029-watch-stats-gate-v2"></script>
 
 <script src="js/monetization.js?v=20261025-monetization-touch-safe-v1"></script>
 <link rel="stylesheet" href="/css/support-widget.css?v=20261025-support-polish-v2"><script src="/js/support-widget.js?v=20261025-support-polish-v2"></script>
